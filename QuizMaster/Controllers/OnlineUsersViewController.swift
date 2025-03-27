@@ -1,16 +1,35 @@
 import UIKit
+import FirebaseFirestore
 
 class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     private var tableView: UITableView!
     private var onlineUsers: [User] = []
     private let firebaseService = FirebaseService.shared
+    private var challengeListener: ListenerRegistration?
+    private var onlineUsersListener: ListenerRegistration?
+    
+    deinit {
+        challengeListener?.remove()
+        onlineUsersListener?.remove()
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Online Users"
         view.backgroundColor = .white
         configureTableView()
-        fetchOnlineUsers()
+        setupChallengeListener()
+        setupOnlineUsersListener()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        firebaseService.updateUserOnlineStatus(isOnline: true)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        firebaseService.updateUserOnlineStatus(isOnline: false)
     }
     
     private func configureTableView() {
@@ -21,8 +40,47 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
         view.addSubview(tableView)
     }
     
-    private func fetchOnlineUsers() {
-        firebaseService.fetchOnlineUsers { [weak self] users in
+    private func setupChallengeListener() {
+        challengeListener = firebaseService.listenForChallenges { [weak self] battleId, challengerId in
+            self?.handleIncomingChallenge(battleId: battleId, challengerId: challengerId)
+        }
+    }
+    
+    private func handleIncomingChallenge(battleId: String, challengerId: String) {
+        // Find challenger's name
+        let challenger = onlineUsers.first { $0.id == challengerId }
+        let challengerName = challenger?.name ?? "Someone"
+        
+        DispatchQueue.main.async { [weak self] in
+            let alert = UIAlertController(
+                title: "Quiz Challenge",
+                message: "\(challengerName) wants to challenge you to a quiz battle!",
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+                self?.acceptChallenge(battleId: battleId)
+            })
+            
+            alert.addAction(UIAlertAction(title: "Decline", style: .cancel))
+            
+            self?.present(alert, animated: true)
+        }
+    }
+    
+    private func acceptChallenge(battleId: String) {
+        firebaseService.acceptChallenge(battleId: battleId) { [weak self] success in
+            if success {
+                DispatchQueue.main.async {
+                    let battleVC = BattleViewController(isChallenger: false, opponentId: battleId)
+                    self?.navigationController?.pushViewController(battleVC, animated: true)
+                }
+            }
+        }
+    }
+    
+    private func setupOnlineUsersListener() {
+        onlineUsersListener = firebaseService.listenForOnlineUsers { [weak self] users in
             DispatchQueue.main.async {
                 self?.onlineUsers = users
                 self?.tableView.reloadData()
@@ -44,19 +102,40 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
     
     // UITableViewDelegate method
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
         let selectedUser = onlineUsers[indexPath.row]
-        firebaseService.sendChallenge(to: selectedUser) { [weak self] success in
+        
+        let alert = UIAlertController(
+            title: "Challenge User",
+            message: "Do you want to challenge \(selectedUser.name) to a quiz battle?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Yes", style: .default) { [weak self] _ in
+            self?.sendChallenge(to: selectedUser)
+        })
+        
+        alert.addAction(UIAlertAction(title: "No", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func sendChallenge(to user: User) {
+        firebaseService.sendChallenge(to: user) { [weak self] result in
             DispatchQueue.main.async {
-                let msg = success ? "Challenge sent successfully!" : "Failed to send challenge."
-                let alert = UIAlertController(title: "Challenge", message: msg, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                    if success {
-                        // After sending challenge, navigate to Battle view as the challenger
-                        let battleVC = BattleViewController(isChallenger: true, opponentId: selectedUser.id)
-                        self?.navigationController?.pushViewController(battleVC, animated: true)
-                    }
-                })
-                self?.present(alert, animated: true, completion: nil)
+                switch result {
+                case .success(let battleId):
+                    let battleVC = BattleViewController(isChallenger: true, opponentId: battleId)
+                    self?.navigationController?.pushViewController(battleVC, animated: true)
+                case .failure(let error):
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to send challenge: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self?.present(alert, animated: true)
+                }
             }
         }
     }

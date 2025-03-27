@@ -382,11 +382,26 @@ extension FirebaseService {
 
 // MARK: - Online and Challenge Features
 extension FirebaseService {
-    func fetchOnlineUsers(completion: @escaping ([User]) -> Void) {
-        // Get users who are online from the users collection
-        db.collection("users")
+    func updateUserOnlineStatus(isOnline: Bool) {
+        guard let userId = auth.currentUser?.uid else { return }
+        
+        let userRef = db.collection("users").document(userId)
+        userRef.updateData([
+            "isOnline": isOnline,
+            "lastSeen": FieldValue.serverTimestamp()
+        ])
+    }
+    
+    func listenForOnlineUsers(completion: @escaping ([User]) -> Void) -> ListenerRegistration {
+        guard let currentUserId = auth.currentUser?.uid else {
+            completion([])
+            return db.collection("users").document("dummy").addSnapshotListener { _, _ in }
+        }
+        
+        return db.collection("users")
             .whereField("isOnline", isEqualTo: true)
-            .getDocuments { snapshot, error in
+            .whereField(FieldPath.documentID(), isNotEqualTo: currentUserId)
+            .addSnapshotListener { snapshot, error in
                 guard let documents = snapshot?.documents else {
                     completion([])
                     return
@@ -404,7 +419,6 @@ extension FirebaseService {
                         let quizzesWon = document.data()["quizzes_won"] as? Int ?? 0
                         let language = document.data()["language"] as? String ?? "tr"
                         
-                        // Parse category stats
                         var categoryStats: [String: CategoryStats] = [:]
                         if let stats = document.data()["category_stats"] as? [String: [String: Any]] {
                             for (category, statData) in stats {
@@ -434,22 +448,91 @@ extension FirebaseService {
             }
     }
 
-    func fetchCategories(completion: @escaping ([String]) -> Void) {
-        // Return all categories from the QuizCategory enum
-        let categories = QuizCategory.allCases.map { $0.rawValue }
-        completion(categories)
-    }
-    
-    func sendChallenge(to user: User, completion: @escaping (Bool) -> Void) {
-        // Create a challenge document in a "challenges" collection
+    func sendChallenge(to user: User, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let currentUserId = auth.currentUser?.uid else {
+            completion(.failure(NSError(domain: "FirebaseService", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])))
+            return
+        }
+        
+        let battleId = UUID().uuidString
         let challengeData: [String: Any] = [
-            "challengerId": self.auth.currentUser?.uid ?? "",
+            "battleId": battleId,
+            "challengerId": currentUserId,
             "opponentId": user.id,
             "timestamp": FieldValue.serverTimestamp(),
-            "status": "pending"
+            "status": "pending",
+            "category": "",
+            "currentQuestion": 0,
+            "challengerScore": 0,
+            "opponentScore": 0
         ]
-        db.collection("challenges").addDocument(data: challengeData) { error in
+        
+        db.collection("battles").document(battleId).setData(challengeData) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(battleId))
+            }
+        }
+    }
+    
+    func listenForChallenges(completion: @escaping (String, String) -> Void) -> ListenerRegistration {
+        guard let currentUserId = auth.currentUser?.uid else { 
+            return db.collection("battles").document("dummy").addSnapshotListener { _, _ in }
+        }
+        
+        return db.collection("battles")
+            .whereField("opponentId", isEqualTo: currentUserId)
+            .whereField("status", isEqualTo: "pending")
+            .addSnapshotListener { snapshot, error in
+                guard let documents = snapshot?.documents,
+                      let challenge = documents.first,
+                      let challengerId = challenge.data()["challengerId"] as? String,
+                      let battleId = challenge.data()["battleId"] as? String else { return }
+                
+                completion(battleId, challengerId)
+            }
+    }
+    
+    func acceptChallenge(battleId: String, completion: @escaping (Bool) -> Void) {
+        db.collection("battles").document(battleId).updateData([
+            "status": "accepted",
+            "acceptedAt": FieldValue.serverTimestamp()
+        ]) { error in
             completion(error == nil)
         }
+    }
+    
+    func listenForBattleUpdates(battleId: String, completion: @escaping ([String: Any]) -> Void) -> ListenerRegistration {
+        return db.collection("battles").document(battleId)
+            .addSnapshotListener { snapshot, error in
+                guard let data = snapshot?.data() else { return }
+                completion(data)
+            }
+    }
+    
+    func updateBattleQuestion(battleId: String, category: String, questionIndex: Int, completion: @escaping (Bool) -> Void) {
+        db.collection("battles").document(battleId).updateData([
+            "category": category,
+            "currentQuestion": questionIndex
+        ]) { error in
+            completion(error == nil)
+        }
+    }
+    
+    func updateBattleScore(battleId: String, isChallenger: Bool, newScore: Int, completion: @escaping (Bool) -> Void) {
+        let field = isChallenger ? "challengerScore" : "opponentScore"
+        db.collection("battles").document(battleId).updateData([
+            field: newScore
+        ]) { error in
+            completion(error == nil)
+        }
+    }
+    
+    func cancelChallenge(battleId: String) {
+        db.collection("battles").document(battleId).updateData([
+            "status": "cancelled",
+            "cancelledAt": FieldValue.serverTimestamp()
+        ])
     }
 }

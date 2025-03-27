@@ -1,21 +1,27 @@
 import UIKit
+import FirebaseFirestore
 
 class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     private var tableView: UITableView!
     private var categories: [String] = []
     private var selectedCategory: String?
     private let firebaseService = FirebaseService.shared
-    private var isChallenger = true
-    private var opponentId: String?
+    private var isChallenger: Bool
+    private var battleId: String
+    private var battleListener: ListenerRegistration?
     
-    init(isChallenger: Bool = true, opponentId: String? = nil) {
+    init(isChallenger: Bool, opponentId: String) {
         self.isChallenger = isChallenger
-        self.opponentId = opponentId
+        self.battleId = opponentId
         super.init(nibName: nil, bundle: nil)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    deinit {
+        battleListener?.remove()
     }
     
     override func viewDidLoad() {
@@ -27,6 +33,7 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
             setupCategorySelection()
         } else {
             setupWaitingView()
+            listenForBattleUpdates()
         }
     }
     
@@ -58,8 +65,9 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
         // Adjust table view frame to account for button
         tableView.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height - 80)
         
-        // Fetch categories
-        fetchCategories()
+        // Load categories from QuizCategory enum
+        categories = QuizCategory.allCases.map { $0.rawValue }
+        tableView.reloadData()
     }
     
     private func setupWaitingView() {
@@ -84,15 +92,38 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             activityIndicator.topAnchor.constraint(equalTo: waitingLabel.bottomAnchor, constant: 20)
         ])
-        
-        // TODO: Listen for battle start event from Firestore
     }
     
-    private func fetchCategories() {
-        firebaseService.fetchCategories { [weak self] categories in
+    private func listenForBattleUpdates() {
+        battleListener = firebaseService.listenForBattleUpdates(battleId: battleId) { [weak self] battleData in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
-                self?.categories = categories
-                self?.tableView.reloadData()
+                if let status = battleData["status"] as? String {
+                    switch status {
+                    case "accepted":
+                        if let category = battleData["category"] as? String,
+                           !category.isEmpty {
+                            let battleQuestionVC = BattleQuestionViewController(
+                                category: category,
+                                opponentId: self.battleId
+                            )
+                            self.navigationController?.pushViewController(battleQuestionVC, animated: true)
+                        }
+                    case "rejected":
+                        let alert = UIAlertController(
+                            title: "Challenge Rejected",
+                            message: "The opponent has rejected your challenge.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                            self.navigationController?.popViewController(animated: true)
+                        })
+                        self.present(alert, animated: true)
+                    default:
+                        break
+                    }
+                }
             }
         }
     }
@@ -105,9 +136,24 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
             return
         }
         
-        // Start the battle with the selected category
-        let battleQuestionVC = BattleQuestionViewController(category: selectedCategory, opponentId: opponentId)
-        navigationController?.pushViewController(battleQuestionVC, animated: true)
+        // Update battle with selected category
+        firebaseService.updateBattleQuestion(battleId: battleId, category: selectedCategory, questionIndex: 0) { [weak self] success in
+            guard success else { return }
+            
+            // Wait for opponent to accept and start the battle
+            DispatchQueue.main.async {
+                let waitingAlert = UIAlertController(
+                    title: "Waiting for Opponent",
+                    message: "Waiting for the opponent to accept the challenge...",
+                    preferredStyle: .alert
+                )
+                waitingAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+                    self?.firebaseService.cancelChallenge(battleId: self?.battleId ?? "")
+                    self?.navigationController?.popViewController(animated: true)
+                })
+                self?.present(waitingAlert, animated: true)
+            }
+        }
     }
     
     // MARK: - UITableViewDataSource
@@ -133,8 +179,6 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
     // MARK: - UITableViewDelegate
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        
-        // Update selected category
         selectedCategory = categories[indexPath.row]
         tableView.reloadData()
     }
