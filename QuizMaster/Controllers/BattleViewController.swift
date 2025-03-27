@@ -9,6 +9,7 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
     private var isChallenger: Bool
     private var battleId: String
     private var battleListener: ListenerRegistration?
+    private var waitingAlert: UIAlertController?
     
     init(isChallenger: Bool, opponentId: String) {
         self.isChallenger = isChallenger
@@ -102,24 +103,32 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
                 if let status = battleData["status"] as? String {
                     switch status {
                     case "accepted":
-                        if let category = battleData["category"] as? String,
-                           !category.isEmpty {
-                            let battleQuestionVC = BattleQuestionViewController(
-                                category: category,
-                                opponentId: self.battleId
-                            )
-                            self.navigationController?.pushViewController(battleQuestionVC, animated: true)
+                        // Dismiss waiting alert if it exists
+                        self.waitingAlert?.dismiss(animated: true) {
+                            if let category = battleData["category"] as? String,
+                               !category.isEmpty {
+                                let battleQuestionVC = BattleQuestionViewController(
+                                    category: category,
+                                    opponentId: self.battleId
+                                )
+                                self.navigationController?.pushViewController(battleQuestionVC, animated: true)
+                            }
                         }
+                        
                     case "rejected":
-                        let alert = UIAlertController(
-                            title: "Challenge Rejected",
-                            message: "The opponent has rejected your challenge.",
-                            preferredStyle: .alert
-                        )
-                        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                            self.navigationController?.popViewController(animated: true)
-                        })
-                        self.present(alert, animated: true)
+                        // Dismiss waiting alert if it exists
+                        self.waitingAlert?.dismiss(animated: true) {
+                            let alert = UIAlertController(
+                                title: "Challenge Rejected",
+                                message: "The opponent has rejected your challenge.",
+                                preferredStyle: .alert
+                            )
+                            alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                                self.navigationController?.popViewController(animated: true)
+                            })
+                            self.present(alert, animated: true)
+                        }
+                        
                     default:
                         break
                     }
@@ -142,16 +151,22 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
             
             // Wait for opponent to accept and start the battle
             DispatchQueue.main.async {
-                let waitingAlert = UIAlertController(
+                guard let self = self else { return }
+                
+                self.waitingAlert = UIAlertController(
                     title: "Waiting for Opponent",
                     message: "Waiting for the opponent to accept the challenge...",
                     preferredStyle: .alert
                 )
-                waitingAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+                
+                self.waitingAlert?.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
                     self?.firebaseService.cancelChallenge(battleId: self?.battleId ?? "")
                     self?.navigationController?.popViewController(animated: true)
                 })
-                self?.present(waitingAlert, animated: true)
+                
+                if let alert = self.waitingAlert {
+                    self.present(alert, animated: true)
+                }
             }
         }
     }
