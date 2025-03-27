@@ -51,8 +51,8 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
                 let alert = UIAlertController(title: "Challenge", message: msg, preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
                     if success {
-                        // After sending challenge, navigate to Battle view
-                        let battleVC = BattleViewController()
+                        // After sending challenge, navigate to Battle view as the challenger
+                        let battleVC = BattleViewController(isChallenger: true, opponentId: selectedUser.id)
                         self?.navigationController?.pushViewController(battleVC, animated: true)
                     }
                 })

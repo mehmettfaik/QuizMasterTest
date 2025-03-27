@@ -382,8 +382,9 @@ class ProfileViewController: UIViewController {
     }
     
     @objc private func onlineQuizButtonTapped() {
+        print("Online quiz button tapped!")
         let onlineUsersVC = OnlineUsersViewController()
-        navigationController?.pushViewController(onlineUsersVC, animated: true)
+        self.navigationController?.pushViewController(onlineUsersVC, animated: true)
     }
 }
 
@@ -1077,4 +1078,4 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
         
         present(alert, animated: true)
     }
-} 
+}

@@ -383,30 +383,61 @@ extension FirebaseService {
 // MARK: - Online and Challenge Features
 extension FirebaseService {
     func fetchOnlineUsers(completion: @escaping ([User]) -> Void) {
-        // Assuming using Firestore collection "onlineUsers"
-        db.collection("onlineUsers").getDocuments { snapshot, error in
-            guard let documents = snapshot?.documents else {
-                completion([])
-                return
+        // Get users who are online from the users collection
+        db.collection("users")
+            .whereField("isOnline", isEqualTo: true)
+            .getDocuments { snapshot, error in
+                guard let documents = snapshot?.documents else {
+                    completion([])
+                    return
+                }
+                
+                var users: [User] = []
+                for document in documents {
+                    if let id = document.documentID as String?,
+                       let name = document.data()["name"] as? String,
+                       let avatar = document.data()["avatar"] as? String,
+                       let email = document.data()["email"] as? String {
+                        
+                        let totalPoints = document.data()["total_points"] as? Int ?? 0
+                        let quizzesPlayed = document.data()["quizzes_played"] as? Int ?? 0
+                        let quizzesWon = document.data()["quizzes_won"] as? Int ?? 0
+                        let language = document.data()["language"] as? String ?? "tr"
+                        
+                        // Parse category stats
+                        var categoryStats: [String: CategoryStats] = [:]
+                        if let stats = document.data()["category_stats"] as? [String: [String: Any]] {
+                            for (category, statData) in stats {
+                                categoryStats[category] = CategoryStats(
+                                    correctAnswers: statData["correct_answers"] as? Int ?? 0,
+                                    wrongAnswers: statData["wrong_answers"] as? Int ?? 0,
+                                    point: statData["point"] as? Int ?? 0
+                                )
+                            }
+                        }
+                        
+                        let user = User(
+                            id: id,
+                            email: email,
+                            name: name,
+                            avatar: avatar,
+                            totalPoints: totalPoints,
+                            quizzesPlayed: quizzesPlayed,
+                            quizzesWon: quizzesWon,
+                            language: language,
+                            categoryStats: categoryStats
+                        )
+                        users.append(user)
+                    }
+                }
+                completion(users)
             }
-            let users = documents.compactMap { doc -> User? in
-                return try? doc.data(as: User.self)
-            }
-            completion(users)
-        }
     }
 
     func fetchCategories(completion: @escaping ([String]) -> Void) {
-        // Assuming Firestore collection "categories" holds the quiz categories
-        db.collection("categories").getDocuments { snapshot, error in
-            guard let documents = snapshot?.documents else {
-                completion([])
-                return
-            }
-            // Use document IDs as category names
-            let categories = documents.map { $0.documentID }
-            completion(categories)
-        }
+        // Return all categories from the QuizCategory enum
+        let categories = QuizCategory.allCases.map { $0.rawValue }
+        completion(categories)
     }
     
     func sendChallenge(to user: User, completion: @escaping (Bool) -> Void) {
