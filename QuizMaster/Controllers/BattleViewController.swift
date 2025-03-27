@@ -103,7 +103,20 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
                 if let status = battleData["status"] as? String {
                     switch status {
                     case "accepted":
-                        // Dismiss waiting alert if it exists
+                        if !self.isChallenger {
+                            // Opponent waiting for category selection
+                            if let category = battleData["category"] as? String,
+                               !category.isEmpty {
+                                let battleQuestionVC = BattleQuestionViewController(
+                                    category: category,
+                                    opponentId: self.battleId
+                                )
+                                self.navigationController?.pushViewController(battleQuestionVC, animated: true)
+                            }
+                        }
+                        
+                    case "ready":
+                        // Both players can start the battle
                         self.waitingAlert?.dismiss(animated: true) {
                             if let category = battleData["category"] as? String,
                                !category.isEmpty {
@@ -116,7 +129,6 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
                         }
                         
                     case "rejected":
-                        // Dismiss waiting alert if it exists
                         self.waitingAlert?.dismiss(animated: true) {
                             let alert = UIAlertController(
                                 title: "Challenge Rejected",
@@ -145,17 +157,17 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
             return
         }
         
-        // Update battle with selected category
-        firebaseService.updateBattleQuestion(battleId: battleId, category: selectedCategory, questionIndex: 0) { [weak self] success in
+        // Update battle with selected category and set status to ready
+        firebaseService.updateBattleState(battleId: battleId, category: selectedCategory, status: "ready") { [weak self] success in
             guard success else { return }
             
-            // Wait for opponent to accept and start the battle
+            // Wait for opponent to join
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
                 self.waitingAlert = UIAlertController(
-                    title: "Waiting for Opponent",
-                    message: "Waiting for the opponent to accept the challenge...",
+                    title: "Starting Battle",
+                    message: "Preparing the quiz battle...",
                     preferredStyle: .alert
                 )
                 

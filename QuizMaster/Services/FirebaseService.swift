@@ -511,10 +511,12 @@ extension FirebaseService {
             }
     }
     
-    func updateBattleQuestion(battleId: String, category: String, questionIndex: Int, completion: @escaping (Bool) -> Void) {
+    func updateBattleState(battleId: String, category: String, status: String, completion: @escaping (Bool) -> Void) {
         db.collection("battles").document(battleId).updateData([
             "category": category,
-            "currentQuestion": questionIndex
+            "status": status,
+            "currentQuestion": 0,
+            "updatedAt": FieldValue.serverTimestamp()
         ]) { error in
             completion(error == nil)
         }
