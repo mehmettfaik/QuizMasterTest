@@ -23,22 +23,6 @@ struct User: Codable {
     var quizzesWon: Int
     var language: String
     var categoryStats: [String: CategoryStats]
-    var isOnline: Bool
-    var lastSeen: Date
-    
-    init(id: String, email: String, name: String, avatar: String, totalPoints: Int, quizzesPlayed: Int, quizzesWon: Int, language: String, categoryStats: [String: CategoryStats], isOnline: Bool = false, lastSeen: Date = Date()) {
-        self.id = id
-        self.email = email
-        self.name = name
-        self.avatar = avatar
-        self.totalPoints = totalPoints
-        self.quizzesPlayed = quizzesPlayed
-        self.quizzesWon = quizzesWon
-        self.language = language
-        self.categoryStats = categoryStats
-        self.isOnline = isOnline
-        self.lastSeen = lastSeen
-    }
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -50,8 +34,6 @@ struct User: Codable {
         case quizzesWon = "quizzes_won"
         case language
         case categoryStats = "category_stats"
-        case isOnline = "isOnline"
-        case lastSeen = "lastSeen"
     }
     
     static func from(_ document: DocumentSnapshot) -> User? {
@@ -68,8 +50,6 @@ struct User: Codable {
             }
         }
         
-        let lastSeenTimestamp = data["lastSeen"] as? Timestamp ?? Timestamp(date: Date())
-        
         return User(
             id: document.documentID,
             email: data["email"] as? String ?? "",
@@ -79,9 +59,7 @@ struct User: Codable {
             quizzesPlayed: data["quizzes_played"] as? Int ?? 0,
             quizzesWon: data["quizzes_won"] as? Int ?? 0,
             language: data["language"] as? String ?? "en",
-            categoryStats: categoryStats,
-            isOnline: data["isOnline"] as? Bool ?? false,
-            lastSeen: lastSeenTimestamp.dateValue()
+            categoryStats: categoryStats
         )
     }
 } 

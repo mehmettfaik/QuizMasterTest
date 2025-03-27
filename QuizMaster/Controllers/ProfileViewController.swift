@@ -180,16 +180,6 @@ class ProfileViewController: UIViewController {
         return button
     }()
     
-    private let onlineButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "bolt.circle.fill"), for: .normal)
-        button.tintColor = .primaryPurple
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        return button
-    }()
-    
     private let friendsButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Arkadaşlarım", for: .normal)
@@ -210,13 +200,11 @@ class ProfileViewController: UIViewController {
         navigationController?.navigationBar.isHidden = false
         navigationController?.navigationBar.prefersLargeTitles = false
         navigationItem.title = "Profil"
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Online", style: .plain, target: self, action: #selector(onlineQuizButtonTapped))
         setupUI()
         setupCollectionView()
         setupBindings()
         setupNavigationBar()
-        
-        // Add action for online button
-        onlineButton.addTarget(self, action: #selector(onlineButtonTapped), for: .touchUpInside)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -367,25 +355,15 @@ class ProfileViewController: UIViewController {
     
     private func setupNavigationBar() {
         let settingsBarButton = UIBarButtonItem(customView: settingsButton)
-        let onlineBarButton = UIBarButtonItem(customView: onlineButton)
         navigationItem.rightBarButtonItem = settingsBarButton
-        navigationItem.leftBarButtonItem = onlineBarButton
         
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
-        onlineButton.addTarget(self, action: #selector(onlineButtonTapped), for: .touchUpInside)
     }
     
     @objc private func settingsTapped() {
         let settingsVC = SettingsViewController(viewModel: viewModel)
         let navController = UINavigationController(rootViewController: settingsVC)
         present(navController, animated: true)
-    }
-    
-    @objc private func onlineButtonTapped() {
-        let onlineBattleVC = OnlineBattleViewController()
-        let nav = UINavigationController(rootViewController: onlineBattleVC)
-        nav.modalPresentationStyle = .fullScreen
-        present(nav, animated: true)
     }
     
     @objc private func friendsButtonTapped() {
@@ -401,6 +379,11 @@ class ProfileViewController: UIViewController {
         }
         
         present(nav, animated: true)
+    }
+    
+    @objc private func onlineQuizButtonTapped() {
+        let onlineUsersVC = OnlineUsersViewController()
+        navigationController?.pushViewController(onlineUsersVC, animated: true)
     }
 }
 
