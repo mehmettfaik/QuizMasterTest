@@ -333,7 +333,7 @@ extension FirebaseService {
     }
     
     func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) {
-        db.collection("quizzes")
+        db.collection("aaaa")
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
