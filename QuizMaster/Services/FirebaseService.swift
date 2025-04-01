@@ -495,10 +495,10 @@ extension FirebaseService {
     }
     
     func acceptChallenge(battleId: String, completion: @escaping (Bool) -> Void) {
-        db.collection("battles").document(battleId).updateData([
+        db.collection("battles").document(battleId).setData([
             "status": "accepted",
             "acceptedAt": FieldValue.serverTimestamp()
-        ]) { error in
+        ], merge: true) { error in
             completion(error == nil)
         }
     }

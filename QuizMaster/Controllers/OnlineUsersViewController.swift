@@ -73,8 +73,8 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
         firebaseService.acceptChallenge(battleId: battleId) { [weak self] success in
             if success {
                 DispatchQueue.main.async {
-                    // Pass challengerId as opponentId
-                    let battleVC = BattleViewController(isChallenger: false, opponentId: challengerId) 
+                    // Pass challengerId as opponentId and battleId for the battle session
+                    let battleVC = BattleViewController(isChallenger: false, opponentId: challengerId, battleId: battleId)
                     self?.navigationController?.pushViewController(battleVC, animated: true)
                 }
             } else {
@@ -130,8 +130,8 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
             DispatchQueue.main.async {
                 switch result {
                 case .success(let battleId):
-                    // Pass the challenged user's ID as opponentId
-                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id)
+                    // Pass the challenged user's ID as opponentId and battleId for the battle session
+                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id, battleId: battleId)
                     self?.navigationController?.pushViewController(battleVC, animated: true)
                 case .failure(let error):
                     let alert = UIAlertController(
