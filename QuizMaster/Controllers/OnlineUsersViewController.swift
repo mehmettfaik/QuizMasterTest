@@ -130,9 +130,8 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
             DispatchQueue.main.async {
                 switch result {
                 case .success(let battleId):
-                    // Pass the challenged user's ID (user.id) as opponentId
-                    // Also pass the battleId to BattleViewController if needed for identifying the battle session
-                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id, battleId: battleId) // Assuming BattleViewController can take battleId
+                    // Pass the challenged user's ID as opponentId
+                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id)
                     self?.navigationController?.pushViewController(battleVC, animated: true)
                 case .failure(let error):
                     let alert = UIAlertController(

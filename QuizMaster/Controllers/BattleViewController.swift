@@ -8,12 +8,14 @@ class BattleViewController: UIViewController, UITableViewDelegate, UITableViewDa
     private let firebaseService = FirebaseService.shared
     private var isChallenger: Bool
     private var battleId: String
+    private var opponentId: String
     private var battleListener: ListenerRegistration?
     private var waitingAlert: UIAlertController?
     
-    init(isChallenger: Bool, opponentId: String) {
+    init(isChallenger: Bool, opponentId: String, battleId: String? = nil) {
         self.isChallenger = isChallenger
-        self.battleId = opponentId
+        self.opponentId = opponentId
+        self.battleId = battleId ?? opponentId  // If battleId is not provided, use opponentId as fallback
         super.init(nibName: nil, bundle: nil)
     }
     
