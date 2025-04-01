@@ -280,15 +280,19 @@ class FirebaseService {
             }
         }
     }
-}
-
-// MARK: - Quiz Operations
-extension FirebaseService {
-    func getQuizzes(category: QuizCategory, difficulty: QuizDifficulty, completion: @escaping (Result<[Quiz], Error>) -> Void) {
-        // Path: aaaa/{category}/questions
-        db.collection("aaaa").document(category.rawValue).collection("questions")
-            .whereField("difficulty", isEqualTo: difficulty.rawValue)
-            .getDocuments(source: .default) { snapshot, error in
+    
+    // MARK: - Online Users and Battle Requests
+    
+    func getOnlineUsers(completion: @escaping (Result<[QuizMaster.User], Error>) -> Void) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])))
+            return
+        }
+        
+        db.collection("users")
+            .whereField("isOnline", isEqualTo: true)
+            .whereField(FieldPath.documentID(), isNotEqualTo: currentUserId)
+            .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
@@ -299,41 +303,239 @@ extension FirebaseService {
                     return
                 }
                 
-                let questions = documents.compactMap { document -> Question? in
-                    guard let question = document.data()["question"] as? String,
-                          let correctAnswer = document.data()["correct_answer"] as? String,
-                          let options = document.data()["options"] as? [String: String] else {
-                        return nil
-                    }
-                    
-                    // Convert options dictionary to array
-                    let sortedOptions = options.sorted { $0.key < $1.key }.map { $0.value }
-                    
-                    return Question(
-                        text: question,
-                        options: sortedOptions,
-                        correctAnswer: correctAnswer,
-                        questionImage: nil,
-                        optionImages: nil
-                    )
+                let users = documents.compactMap { QuizMaster.User.from($0) }
+                completion(.success(users))
+            }
+    }
+    
+    func updateOnlineStatus(userId: String, isOnline: Bool) {
+        db.collection("users").document(userId).updateData([
+            "isOnline": isOnline,
+            "lastSeen": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                print("Error updating online status: \(error)")
+            }
+        }
+    }
+    
+    func sendBattleRequest(
+        challengerId: String,
+        challengerName: String,
+        opponentId: String,
+        opponentName: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let battleData: [String: Any] = [
+            "challenger_id": challengerId,
+            "challenger_name": challengerName,
+            "opponent_id": opponentId,
+            "opponent_name": opponentName,
+            "status": BattleStatus.pending.rawValue,
+            "created_at": Timestamp(date: Date())
+        ]
+        
+        db.collection("battles").addDocument(data: battleData) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Battle request sent successfully"))
+        }
+    }
+    
+    func respondToBattleRequest(
+        battleId: String,
+        status: BattleStatus,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        db.collection("battles").document(battleId).updateData([
+            "status": status.rawValue
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Response sent successfully"))
+        }
+    }
+    
+    func listenForBattleRequests(
+        userId: String,
+        completion: @escaping (Result<[QuizBattle], Error>) -> Void
+    ) -> ListenerRegistration {
+        return db.collection("battles")
+            .whereField("opponent_id", isEqualTo: userId)
+            .whereField("status", isEqualTo: BattleStatus.pending.rawValue)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
                 }
                 
-                // Create a single Quiz object with all questions
-                let quiz = Quiz(
-                    id: UUID().uuidString,
-                    category: category,
-                    difficulty: difficulty,
-                    questions: questions,
-                    timePerQuestion: 30,  // Default values
-                    pointsPerQuestion: 10  // Default values
-                )
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
                 
-                completion(.success([quiz]))
+                let battles = documents.compactMap { QuizBattle.from($0) }
+                completion(.success(battles))
+            }
+    }
+    
+    func listenForBattleStatus(
+        battleId: String,
+        completion: @escaping (Result<QuizBattle, Error>) -> Void
+    ) -> ListenerRegistration {
+        return db.collection("battles").document(battleId)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let document = snapshot, document.exists, let battle = QuizBattle.from(document) else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Battle not found"])))
+                    return
+                }
+                
+                completion(.success(battle))
+            }
+    }
+    
+    func createBattle(
+        battleId: String,
+        category: String,
+        difficulty: String,
+        quizId: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        db.collection("battles").document(battleId).updateData([
+            "category": category,
+            "difficulty": difficulty,
+            "quiz_id": quizId,
+            "status": BattleStatus.ongoing.rawValue,
+            "current_question_index": 0,
+            "challenger_score": 0,
+            "opponent_score": 0
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Battle created successfully"))
+        }
+    }
+    
+    func updateBattleScore(
+        battleId: String,
+        isChallenger: Bool,
+        score: Int,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let field = isChallenger ? "challenger_score" : "opponent_score"
+        
+        db.collection("battles").document(battleId).updateData([
+            field: score
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Score updated successfully"))
+        }
+    }
+    
+    func advanceQuestion(
+        battleId: String,
+        newIndex: Int,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        db.collection("battles").document(battleId).updateData([
+            "current_question_index": newIndex
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Question advanced successfully"))
+        }
+    }
+    
+    func completeBattle(
+        battleId: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        db.collection("battles").document(battleId).updateData([
+            "status": BattleStatus.completed.rawValue
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Battle completed successfully"))
+        }
+    }
+    
+    func getBattleHistory(
+        userId: String,
+        completion: @escaping (Result<[QuizBattle], Error>) -> Void
+    ) {
+        db.collection("battles")
+            .whereField("status", isEqualTo: BattleStatus.completed.rawValue)
+            .whereFilter(Filter.orFilter([
+                Filter.whereField("challenger_id", isEqualTo: userId),
+                Filter.whereField("opponent_id", isEqualTo: userId)
+            ]))
+            .order(by: "created_at", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                let battles = documents.compactMap { QuizBattle.from($0) }
+                completion(.success(battles))
+            }
+    }
+}
+
+// MARK: - Quiz Operations
+extension FirebaseService {
+    func getQuizzes(category: QuizCategory, difficulty: QuizDifficulty, completion: @escaping (Result<[Quiz], Error>) -> Void) {
+        db.collection("aaaa")
+            .document(category.rawValue.lowercased())
+            .collection("questions")
+            .whereField("difficulty", isEqualTo: difficulty.rawValue.lowercased())
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                let quizzes = documents.compactMap { Quiz.from($0) }
+                completion(.success(quizzes))
             }
     }
     
     func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) {
-        db.collection("aaaa")
+        db.collection("quizzes")
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -351,6 +553,26 @@ extension FirebaseService {
                 })).sorted()
                 
                 completion(.success(categories))
+            }
+    }
+    
+    func getQuiz(id: String, category: String, completion: @escaping (Result<Quiz, Error>) -> Void) {
+        db.collection("aaaa")
+            .document(category.lowercased())
+            .collection("questions")
+            .document(id)
+            .getDocument { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let document = snapshot, document.exists, let quiz = Quiz.from(document) else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Quiz not found"])))
+                    return
+                }
+                
+                completion(.success(quiz))
             }
     }
     
@@ -406,163 +628,34 @@ extension FirebaseService {
             }
         }
     }
-}
-
-// MARK: - Online and Challenge Features
-extension FirebaseService {
-    func updateUserOnlineStatus(isOnline: Bool) {
-        guard let userId = auth.currentUser?.uid else { return }
-        
+    
+    func updateUserBattleStats(userId: String, won: Bool) {
         let userRef = db.collection("users").document(userId)
-        userRef.updateData([
-            "isOnline": isOnline,
-            "lastSeen": FieldValue.serverTimestamp()
-        ])
-    }
-    
-    func listenForOnlineUsers(completion: @escaping ([User]) -> Void) -> ListenerRegistration {
-        guard let currentUserId = auth.currentUser?.uid else {
-            completion([])
-            return db.collection("users").document("dummy").addSnapshotListener { _, _ in }
-        }
         
-        return db.collection("users")
-            .whereField("isOnline", isEqualTo: true)
-            .whereField(FieldPath.documentID(), isNotEqualTo: currentUserId)
-            .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-                
-                var users: [User] = []
-                for document in documents {
-                    if let id = document.documentID as String?,
-                       let name = document.data()["name"] as? String,
-                       let avatar = document.data()["avatar"] as? String,
-                       let email = document.data()["email"] as? String {
-                        
-                        let totalPoints = document.data()["total_points"] as? Int ?? 0
-                        let quizzesPlayed = document.data()["quizzes_played"] as? Int ?? 0
-                        let quizzesWon = document.data()["quizzes_won"] as? Int ?? 0
-                        let language = document.data()["language"] as? String ?? "tr"
-                        
-                        var categoryStats: [String: CategoryStats] = [:]
-                        if let stats = document.data()["category_stats"] as? [String: [String: Any]] {
-                            for (category, statData) in stats {
-                                categoryStats[category] = CategoryStats(
-                                    correctAnswers: statData["correct_answers"] as? Int ?? 0,
-                                    wrongAnswers: statData["wrong_answers"] as? Int ?? 0,
-                                    point: statData["point"] as? Int ?? 0
-                                )
-                            }
-                        }
-                        
-                        let user = User(
-                            id: id,
-                            email: email,
-                            name: name,
-                            avatar: avatar,
-                            totalPoints: totalPoints,
-                            quizzesPlayed: quizzesPlayed,
-                            quizzesWon: quizzesWon,
-                            language: language,
-                            categoryStats: categoryStats
-                        )
-                        users.append(user)
-                    }
-                }
-                completion(users)
+        db.runTransaction({ (transaction, errorPointer) -> Any? in
+            let userDocument: DocumentSnapshot
+            do {
+                try userDocument = transaction.getDocument(userRef)
+            } catch let fetchError as NSError {
+                errorPointer?.pointee = fetchError
+                return nil
             }
-    }
-
-    func sendChallenge(to user: User, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let currentUserId = auth.currentUser?.uid else {
-            completion(.failure(NSError(domain: "FirebaseService", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])))
-            return
-        }
-        
-        let battleId = UUID().uuidString
-        let challengeData: [String: Any] = [
-            "battleId": battleId,
-            "challengerId": currentUserId,
-            "opponentId": user.id,
-            "timestamp": FieldValue.serverTimestamp(),
-            "status": "pending",
-            "category": "",
-            "currentQuestion": 0,
-            "challengerScore": 0,
-            "opponentScore": 0
-        ]
-        
-        db.collection("battles").document(battleId).setData(challengeData) { error in
+            
+            guard let oldWon = userDocument.data()?["quizzes_won"] as? Int else {
+                return nil
+            }
+            
+            if won {
+                transaction.updateData([
+                    "quizzes_won": oldWon + 1
+                ], forDocument: userRef)
+            }
+            
+            return nil
+        }) { _, error in
             if let error = error {
-                completion(.failure(error))
-            } else {
-                completion(.success(battleId))
+                print("Error updating battle stats: \(error)")
             }
         }
     }
-    
-    func listenForChallenges(completion: @escaping (String, String) -> Void) -> ListenerRegistration {
-        guard let currentUserId = auth.currentUser?.uid else { 
-            return db.collection("battles").document("dummy").addSnapshotListener { _, _ in }
-        }
-        
-        return db.collection("battles")
-            .whereField("opponentId", isEqualTo: currentUserId)
-            .whereField("status", isEqualTo: "pending")
-            .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents,
-                      let challenge = documents.first,
-                      let challengerId = challenge.data()["challengerId"] as? String,
-                      let battleId = challenge.data()["battleId"] as? String else { return }
-                
-                completion(battleId, challengerId)
-            }
-    }
-    
-    func acceptChallenge(battleId: String, completion: @escaping (Bool) -> Void) {
-        db.collection("battles").document(battleId).setData([
-            "status": "accepted",
-            "acceptedAt": FieldValue.serverTimestamp()
-        ], merge: true) { error in
-            completion(error == nil)
-        }
-    }
-    
-    func listenForBattleUpdates(battleId: String, completion: @escaping ([String: Any]) -> Void) -> ListenerRegistration {
-        return db.collection("battles").document(battleId)
-            .addSnapshotListener { snapshot, error in
-                guard let data = snapshot?.data() else { return }
-                completion(data)
-            }
-    }
-    
-    func updateBattleState(battleId: String, category: String, status: String, completion: @escaping (Bool) -> Void) {
-        db.collection("battles").document(battleId).updateData([
-            "category": category,
-            "status": status,
-            "currentQuestion": 0,
-            "updatedAt": FieldValue.serverTimestamp()
-        ]) { error in
-            completion(error == nil)
-        }
-    }
-    
-    func updateBattleScore(battleId: String, isChallenger: Bool, newScore: Int, completion: @escaping (Bool) -> Void) {
-        let field = isChallenger ? "challengerScore" : "opponentScore"
-        db.collection("battles").document(battleId).updateData([
-            field: newScore
-        ]) { error in
-            completion(error == nil)
-        }
-    }
-    
-    func cancelChallenge(battleId: String) {
-        db.collection("battles").document(battleId).updateData([
-            "status": "cancelled",
-            "cancelledAt": FieldValue.serverTimestamp()
-        ])
-    }
-}
+} 

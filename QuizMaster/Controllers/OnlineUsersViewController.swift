@@ -1,148 +1,294 @@
 import UIKit
-import FirebaseFirestore
+import Combine
+import FirebaseAuth
 
-class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-    private var tableView: UITableView!
-    private var onlineUsers: [User] = []
-    private let firebaseService = FirebaseService.shared
-    private var challengeListener: ListenerRegistration?
-    private var onlineUsersListener: ListenerRegistration?
+class OnlineUsersViewController: UIViewController {
+    private var users: [User] = []
+    private var cancellables = Set<AnyCancellable>()
     
-    deinit {
-        challengeListener?.remove()
-        onlineUsersListener?.remove()
-    }
+    private let tableView: UITableView = {
+        let tableView = UITableView()
+        tableView.backgroundColor = .white
+        tableView.separatorStyle = .none
+        tableView.register(OnlineUserCell.self, forCellReuseIdentifier: "OnlineUserCell")
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        return tableView
+    }()
+    
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.color = .primaryPurple
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+    
+    private let emptyStateLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Şu anda çevrimiçi kullanıcı bulunmuyor"
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.textColor = .systemGray
+        label.textAlignment = .center
+        label.isHidden = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Online Users"
+        setupUI()
+        setupNavigation()
+        setupTableView()
+        fetchOnlineUsers()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        fetchOnlineUsers()
+    }
+    
+    private func setupUI() {
         view.backgroundColor = .white
-        configureTableView()
-        setupChallengeListener()
-        setupOnlineUsersListener()
+        view.addSubview(tableView)
+        view.addSubview(loadingIndicator)
+        view.addSubview(emptyStateLabel)
+        
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            
+            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            emptyStateLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            emptyStateLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+        ])
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        firebaseService.updateUserOnlineStatus(isOnline: true)
+    private func setupNavigation() {
+        title = "Çevrimiçi Kullanıcılar"
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        
+        let refreshButton = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(refreshButtonTapped))
+        navigationItem.rightBarButtonItem = refreshButton
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        firebaseService.updateUserOnlineStatus(isOnline: false)
-    }
-    
-    private func configureTableView() {
-        tableView = UITableView(frame: view.bounds)
+    private func setupTableView() {
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "UserCell")
-        view.addSubview(tableView)
     }
     
-    private func setupChallengeListener() {
-        challengeListener = firebaseService.listenForChallenges { [weak self] battleId, challengerId in
-            self?.handleIncomingChallenge(battleId: battleId, challengerId: challengerId)
-        }
-    }
-    
-    private func handleIncomingChallenge(battleId: String, challengerId: String) {
-        // Find challenger's name
-        let challenger = onlineUsers.first { $0.id == challengerId }
-        let challengerName = challenger?.name ?? "Someone"
+    private func fetchOnlineUsers() {
+        loadingIndicator.startAnimating()
+        tableView.isHidden = true
+        emptyStateLabel.isHidden = true
         
-        DispatchQueue.main.async { [weak self] in
-            let alert = UIAlertController(
-                title: "Quiz Challenge",
-                message: "\(challengerName) wants to challenge you to a quiz battle!",
-                preferredStyle: .alert
-            )
+        FirebaseService.shared.getOnlineUsers { [weak self] result in
+            self?.loadingIndicator.stopAnimating()
+            self?.tableView.isHidden = false
             
-            alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
-                // Pass both battleId and challengerId to acceptChallenge
-                self?.acceptChallenge(battleId: battleId, challengerId: challengerId) 
-            })
-            
-            alert.addAction(UIAlertAction(title: "Decline", style: .cancel))
-            
-            self?.present(alert, animated: true)
-        }
-    }
-    
-    private func acceptChallenge(battleId: String, challengerId: String) { 
-        firebaseService.acceptChallenge(battleId: battleId) { [weak self] success in
-            if success {
-                DispatchQueue.main.async {
-                    // Pass challengerId as opponentId and battleId for the battle session
-                    let battleVC = BattleViewController(isChallenger: false, opponentId: challengerId, battleId: battleId)
-                    self?.navigationController?.pushViewController(battleVC, animated: true)
-                }
-            } else {
-                 // Handle acceptance failure (optional: show an error alert)
-                 print("Failed to accept challenge")
-            }
-        }
-    }
-    
-    private func setupOnlineUsersListener() {
-        onlineUsersListener = firebaseService.listenForOnlineUsers { [weak self] users in
-            DispatchQueue.main.async {
-                self?.onlineUsers = users
+            switch result {
+            case .success(let users):
+                self?.users = users
                 self?.tableView.reloadData()
+                
+                if users.isEmpty {
+                    self?.emptyStateLabel.isHidden = false
+                    self?.tableView.isHidden = true
+                } else {
+                    self?.emptyStateLabel.isHidden = true
+                    self?.tableView.isHidden = false
+                }
+                
+            case .failure(let error):
+                self?.showErrorAlert(error)
+                self?.emptyStateLabel.isHidden = false
+                self?.tableView.isHidden = true
             }
         }
     }
     
-    // UITableViewDataSource methods
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return onlineUsers.count
+    @objc private func refreshButtonTapped() {
+        fetchOnlineUsers()
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "UserCell", for: indexPath)
-        let user = onlineUsers[indexPath.row]
-        cell.textLabel?.text = user.name
-        return cell
-    }
-    
-    // UITableViewDelegate method
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let selectedUser = onlineUsers[indexPath.row]
+    private func sendBattleRequest(to user: User) {
+        guard let currentUser = Auth.auth().currentUser else { return }
         
-        let alert = UIAlertController(
-            title: "Challenge User",
-            message: "Do you want to challenge \(selectedUser.name) to a quiz battle?",
+        let alertController = UIAlertController(
+            title: "Yarışma İsteği",
+            message: "\(user.name) kullanıcısına yarışma isteği göndermek istiyor musunuz?",
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "Yes", style: .default) { [weak self] _ in
-            self?.sendChallenge(to: selectedUser)
-        })
-        
-        alert.addAction(UIAlertAction(title: "No", style: .cancel))
-        
-        present(alert, animated: true)
-    }
-    
-    private func sendChallenge(to user: User) {
-        firebaseService.sendChallenge(to: user) { [weak self] result in
-            DispatchQueue.main.async {
+        alertController.addAction(UIAlertAction(title: "İptal", style: .cancel))
+        alertController.addAction(UIAlertAction(title: "Gönder", style: .default) { [weak self] _ in
+            self?.loadingIndicator.startAnimating()
+            
+            FirebaseService.shared.sendBattleRequest(
+                challengerId: currentUser.uid,
+                challengerName: UserDefaults.standard.string(forKey: "userName") ?? "Kullanıcı",
+                opponentId: user.id,
+                opponentName: user.name
+            ) { [weak self] result in
+                self?.loadingIndicator.stopAnimating()
+                
                 switch result {
-                case .success(let battleId):
-                    // Pass the challenged user's ID as opponentId and battleId for the battle session
-                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id, battleId: battleId)
-                    self?.navigationController?.pushViewController(battleVC, animated: true)
-                case .failure(let error):
+                case .success:
                     let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to send challenge: \(error.localizedDescription)",
+                        title: "Başarılı",
+                        message: "Yarışma isteği başarıyla gönderildi. Kullanıcının cevabı bekleyiniz.",
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    alert.addAction(UIAlertAction(title: "Tamam", style: .default))
                     self?.present(alert, animated: true)
+                    
+                case .failure(let error):
+                    self?.showErrorAlert(error)
                 }
             }
-        }
+        })
+        
+        present(alertController, animated: true)
     }
 }
+
+// MARK: - UITableViewDelegate & UITableViewDataSource
+extension OnlineUsersViewController: UITableViewDelegate, UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return users.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "OnlineUserCell", for: indexPath) as? OnlineUserCell else {
+            return UITableViewCell()
+        }
+        
+        let user = users[indexPath.row]
+        cell.configure(with: user)
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 80
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let user = users[indexPath.row]
+        sendBattleRequest(to: user)
+    }
+}
+
+// MARK: - OnlineUserCell
+class OnlineUserCell: UITableViewCell {
+    private let containerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .systemGray6
+        view.layer.cornerRadius = 12
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let avatarImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 25
+        imageView.layer.masksToBounds = true
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        return imageView
+    }()
+    
+    private let nameLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16, weight: .semibold)
+        label.textColor = .black
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private let pointsLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14)
+        label.textColor = .systemGray
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private let onlineIndicator: UIView = {
+        let view = UIView()
+        view.backgroundColor = .systemGreen
+        view.layer.cornerRadius = 5
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupUI() {
+        contentView.addSubview(containerView)
+        containerView.addSubview(avatarImageView)
+        containerView.addSubview(nameLabel)
+        containerView.addSubview(pointsLabel)
+        containerView.addSubview(onlineIndicator)
+        
+        NSLayoutConstraint.activate([
+            containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            
+            avatarImageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 12),
+            avatarImageView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            avatarImageView.widthAnchor.constraint(equalToConstant: 50),
+            avatarImageView.heightAnchor.constraint(equalToConstant: 50),
+            
+            nameLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
+            nameLabel.leadingAnchor.constraint(equalTo: avatarImageView.trailingAnchor, constant: 12),
+            nameLabel.trailingAnchor.constraint(equalTo: onlineIndicator.leadingAnchor, constant: -8),
+            
+            pointsLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            pointsLabel.leadingAnchor.constraint(equalTo: avatarImageView.trailingAnchor, constant: 12),
+            pointsLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -12),
+            pointsLabel.bottomAnchor.constraint(lessThanOrEqualTo: containerView.bottomAnchor, constant: -12),
+            
+            onlineIndicator.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
+            onlineIndicator.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -12),
+            onlineIndicator.widthAnchor.constraint(equalToConstant: 10),
+            onlineIndicator.heightAnchor.constraint(equalToConstant: 10)
+        ])
+    }
+    
+    func configure(with user: User) {
+        nameLabel.text = user.name
+        pointsLabel.text = "\(user.totalPoints) Puan"
+        
+        if let avatarType = Avatar(rawValue: user.avatar) {
+            avatarImageView.image = avatarType.image
+            avatarImageView.backgroundColor = avatarType.backgroundColor
+        } else {
+            avatarImageView.image = UIImage(systemName: "person.fill")
+            avatarImageView.backgroundColor = .systemGray4
+        }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        avatarImageView.image = nil
+        nameLabel.text = nil
+        pointsLabel.text = nil
+    }
+} 
