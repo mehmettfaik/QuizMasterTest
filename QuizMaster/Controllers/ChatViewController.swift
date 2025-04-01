@@ -2,7 +2,7 @@ import UIKit
 
 class ChatViewController: UIViewController {
     private let AZURE_OPENAI_ENDPOINT = "https://mfaik-m3xadcy3-francecentral.cognitiveservices.azure.com/openai/deployments/gpt-35-turbo/chat/completions?api-version=2024-08-01-preview"
-    private let AZURE_OPENAI_API_KEY = "8TejRdyprdoN8PgDxjxZRYVKkFTNIhG4hop3YpfPceI49Hs9PbbQJQQJ99AKAC5T7U2XJ3w3AAAAACOG0WLu"
+    private let AZURE_OPENAI_API_KEY = "ejRdyprdoN8PgDxjxZRYVKkFTNIhG4hop3YpfPceI49Hs9PbbQJQQJ99AKAC5T7U2XJ3w3AAAAACOG0WLu"
     
     var presetMessage: String?
     

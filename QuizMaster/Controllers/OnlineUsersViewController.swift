@@ -59,7 +59,8 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
             )
             
             alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
-                self?.acceptChallenge(battleId: battleId)
+                // Pass both battleId and challengerId to acceptChallenge
+                self?.acceptChallenge(battleId: battleId, challengerId: challengerId) 
             })
             
             alert.addAction(UIAlertAction(title: "Decline", style: .cancel))
@@ -68,13 +69,17 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
         }
     }
     
-    private func acceptChallenge(battleId: String) {
+    private func acceptChallenge(battleId: String, challengerId: String) { 
         firebaseService.acceptChallenge(battleId: battleId) { [weak self] success in
             if success {
                 DispatchQueue.main.async {
-                    let battleVC = BattleViewController(isChallenger: false, opponentId: battleId)
+                    // Pass challengerId as opponentId
+                    let battleVC = BattleViewController(isChallenger: false, opponentId: challengerId) 
                     self?.navigationController?.pushViewController(battleVC, animated: true)
                 }
+            } else {
+                 // Handle acceptance failure (optional: show an error alert)
+                 print("Failed to accept challenge")
             }
         }
     }
@@ -125,7 +130,9 @@ class OnlineUsersViewController: UIViewController, UITableViewDelegate, UITableV
             DispatchQueue.main.async {
                 switch result {
                 case .success(let battleId):
-                    let battleVC = BattleViewController(isChallenger: true, opponentId: battleId)
+                    // Pass the challenged user's ID (user.id) as opponentId
+                    // Also pass the battleId to BattleViewController if needed for identifying the battle session
+                    let battleVC = BattleViewController(isChallenger: true, opponentId: user.id, battleId: battleId) // Assuming BattleViewController can take battleId
                     self?.navigationController?.pushViewController(battleVC, animated: true)
                 case .failure(let error):
                     let alert = UIAlertController(
