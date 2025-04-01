@@ -332,16 +332,28 @@ class FirebaseService {
             "opponent_id": opponentId,
             "opponent_name": opponentName,
             "status": BattleStatus.pending.rawValue,
-            "created_at": Timestamp(date: Date())
+            "created_at": Timestamp(date: Date()),
+            "category": "",
+            "difficulty": "",
+            "quiz_id": NSNull(),
+            "challenger_score": NSNull(),
+            "opponent_score": NSNull(),
+            "current_question_index": NSNull()
         ]
         
-        db.collection("battles").addDocument(data: battleData) { error in
+        var ref: DocumentReference? = nil
+        ref = db.collection("battles").addDocument(data: battleData) { error in
             if let error = error {
                 completion(.failure(error))
                 return
             }
             
-            completion(.success("Battle request sent successfully"))
+            guard let documentId = ref?.documentID else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get battle ID"])))
+                return
+            }
+            
+            completion(.success(documentId))
         }
     }
     

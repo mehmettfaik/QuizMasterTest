@@ -42,22 +42,9 @@
 		3575AB002D7B9E9D0094DFAA /* QuizMasterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuizMasterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		3575AB082D7B9E9D0094DFAA /* Exceptions for "QuizMaster" folder in "QuizMaster" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 3575AADF2D7B9E9B0094DFAA /* QuizMaster */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3575AAE22D7B9E9B0094DFAA /* QuizMaster */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				3575AB082D7B9E9D0094DFAA /* Exceptions for "QuizMaster" folder in "QuizMaster" target */,
-			);
 			path = QuizMaster;
 			sourceTree = "<group>";
 		};
