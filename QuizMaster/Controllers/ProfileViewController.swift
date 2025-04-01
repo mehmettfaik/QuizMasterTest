@@ -439,25 +439,99 @@ class ProfileViewController: UIViewController {
     }
     
     private func setupBattleRequestListener() {
-        guard let currentUser = Auth.auth().currentUser else { return }
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        battleRequestListener = FirebaseService.shared.listenForBattleRequests(userId: currentUser.uid) { [weak self] result in
+        battleRequestListener = FirebaseService.shared.listenForBattleRequests(userId: currentUserId) { [weak self] result in
             switch result {
             case .success(let battles):
-                // En son gelen battle request'i işle
-                if let battle = battles.first {
-                    self?.showBattleRequest(battle: battle)
+                // Sadece yeni gelen istekleri göster
+                let newBattles = battles.filter { battle in
+                    let requestTime = battle.createdAt ?? Date()
+                    return Date().timeIntervalSince(requestTime) < 30 // 30 saniye içindeki istekleri göster
+                }
+                
+                if !newBattles.isEmpty {
+                    self?.showBattleRequest(battle: newBattles[0])
                 }
                 
             case .failure(let error):
-                print("Battle request listener error: \(error)")
+                print("Error listening for battle requests: \(error)")
             }
         }
     }
     
     private func showBattleRequest(battle: QuizBattle) {
-        let requestVC = BattleRequestViewController(battle: battle)
-        self.present(requestVC, animated: true)
+        let alert = UIAlertController(
+            title: "Düello İsteği",
+            message: "\(battle.challengerName) sizi düelloya davet ediyor!",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Kabul Et", style: .default) { [weak self] _ in
+            FirebaseService.shared.respondToBattleRequest(battleId: battle.id, status: .accepted) { result in
+                switch result {
+                case .success:
+                    // İsteği kabul eden kullanıcı beklemede kalacak
+                    self?.showWaitingAlert(battle: battle)
+                    
+                case .failure(let error):
+                    self?.showErrorAlert(error)
+                }
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "Reddet", style: .destructive) { [weak self] _ in
+            FirebaseService.shared.respondToBattleRequest(battleId: battle.id, status: .rejected) { result in
+                if case .failure(let error) = result {
+                    self?.showErrorAlert(error)
+                }
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func showWaitingAlert(battle: QuizBattle) {
+        let alert = UIAlertController(
+            title: "Bekleyiniz",
+            message: "Rakibiniz kategori ve zorluk seviyesi seçiyor...",
+            preferredStyle: .alert
+        )
+        
+        // Kategori seçimi beklenirken battle durumunu dinle
+        let battleListener = FirebaseService.shared.listenForBattleStatus(battleId: battle.id) { [weak self] result in
+            switch result {
+            case .success(let updatedBattle):
+                if updatedBattle.status == .ongoing,
+                   !updatedBattle.category.isEmpty,
+                   let quizId = updatedBattle.quizId {
+                    // Quiz başladığında alert'i kapat ve quiz ekranına geç
+                    alert.dismiss(animated: true) {
+                        FirebaseService.shared.getQuiz(id: quizId, category: updatedBattle.category) { result in
+                            switch result {
+                            case .success(let quiz):
+                                let battleVC = BattleQuizViewController(quiz: quiz, battle: updatedBattle, isChallenger: false)
+                                battleVC.modalPresentationStyle = .fullScreen
+                                self?.present(battleVC, animated: true)
+                                
+                            case .failure(let error):
+                                self?.showErrorAlert(error)
+                            }
+                        }
+                    }
+                }
+                
+            case .failure(let error):
+                print("Error listening for battle status: \(error)")
+            }
+        }
+        
+        // Alert kapatıldığında listener'ı temizle
+        alert.addAction(UIAlertAction(title: "İptal", style: .cancel) { _ in
+            battleListener.remove()
+        })
+        
+        present(alert, animated: true)
     }
 }
 

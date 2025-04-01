@@ -120,41 +120,69 @@ class OnlineUsersViewController: UIViewController {
     private func sendBattleRequest(to user: User) {
         guard let currentUser = Auth.auth().currentUser else { return }
         
-        let alertController = UIAlertController(
-            title: "Yarışma İsteği",
-            message: "\(user.name) kullanıcısına yarışma isteği göndermek istiyor musunuz?",
+        loadingIndicator.startAnimating()
+        
+        FirebaseService.shared.sendBattleRequest(
+            challengerId: currentUser.uid,
+            challengerName: UserDefaults.standard.string(forKey: "userName") ?? "",
+            opponentId: user.id,
+            opponentName: user.name
+        ) { [weak self] result in
+            self?.loadingIndicator.stopAnimating()
+            
+            switch result {
+            case .success(let battleId):
+                // İstek gönderildikten sonra yanıt bekle
+                self?.showWaitingAlert(battleId: battleId)
+                
+            case .failure(let error):
+                self?.showErrorAlert(error)
+            }
+        }
+    }
+    
+    private func showWaitingAlert(battleId: String) {
+        let alert = UIAlertController(
+            title: "Bekleyiniz",
+            message: "Rakibinizin yanıtı bekleniyor...",
             preferredStyle: .alert
         )
         
-        alertController.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alertController.addAction(UIAlertAction(title: "Gönder", style: .default) { [weak self] _ in
-            self?.loadingIndicator.startAnimating()
-            
-            FirebaseService.shared.sendBattleRequest(
-                challengerId: currentUser.uid,
-                challengerName: UserDefaults.standard.string(forKey: "userName") ?? "Kullanıcı",
-                opponentId: user.id,
-                opponentName: user.name
-            ) { [weak self] result in
-                self?.loadingIndicator.stopAnimating()
-                
-                switch result {
-                case .success:
-                    let alert = UIAlertController(
-                        title: "Başarılı",
-                        message: "Yarışma isteği başarıyla gönderildi. Kullanıcının cevabı bekleyiniz.",
-                        preferredStyle: .alert
-                    )
-                    alert.addAction(UIAlertAction(title: "Tamam", style: .default))
-                    self?.present(alert, animated: true)
-                    
-                case .failure(let error):
-                    self?.showErrorAlert(error)
+        // Battle durumunu dinle
+        let battleListener = FirebaseService.shared.listenForBattleStatus(battleId: battleId) { [weak self] result in
+            switch result {
+            case .success(let battle):
+                if battle.status == .accepted {
+                    // Rakip kabul ettiğinde alert'i kapat ve kategori seçimine geç
+                    alert.dismiss(animated: true) {
+                        let categoryVC = BattleCategoryViewController(battle: battle)
+                        categoryVC.modalPresentationStyle = .fullScreen
+                        self?.present(categoryVC, animated: true)
+                    }
+                } else if battle.status == .rejected {
+                    // Rakip reddettiğinde alert'i kapat ve mesaj göster
+                    alert.dismiss(animated: true) {
+                        let rejectAlert = UIAlertController(
+                            title: "İstek Reddedildi",
+                            message: "Rakibiniz düello isteğinizi reddetti.",
+                            preferredStyle: .alert
+                        )
+                        rejectAlert.addAction(UIAlertAction(title: "Tamam", style: .default))
+                        self?.present(rejectAlert, animated: true)
+                    }
                 }
+                
+            case .failure(let error):
+                print("Error listening for battle status: \(error)")
             }
+        }
+        
+        // Alert kapatıldığında listener'ı temizle
+        alert.addAction(UIAlertAction(title: "İptal", style: .cancel) { _ in
+            battleListener.remove()
         })
         
-        present(alertController, animated: true)
+        present(alert, animated: true)
     }
 }
 

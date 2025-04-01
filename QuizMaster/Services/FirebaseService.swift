@@ -345,23 +345,6 @@ class FirebaseService {
         }
     }
     
-    func respondToBattleRequest(
-        battleId: String,
-        status: BattleStatus,
-        completion: @escaping (Result<String, Error>) -> Void
-    ) {
-        db.collection("battles").document(battleId).updateData([
-            "status": status.rawValue
-        ]) { error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            completion(.success("Response sent successfully"))
-        }
-    }
-    
     func listenForBattleRequests(
         userId: String,
         completion: @escaping (Result<[QuizBattle], Error>) -> Void
@@ -405,6 +388,24 @@ class FirebaseService {
             }
     }
     
+    func respondToBattleRequest(
+        battleId: String,
+        status: BattleStatus,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        db.collection("battles").document(battleId).updateData([
+            "status": status.rawValue,
+            "response_time": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            completion(.success("Response sent successfully"))
+        }
+    }
+    
     func createBattle(
         battleId: String,
         category: String,
@@ -419,7 +420,8 @@ class FirebaseService {
             "status": BattleStatus.ongoing.rawValue,
             "current_question_index": 0,
             "challenger_score": 0,
-            "opponent_score": 0
+            "opponent_score": 0,
+            "start_time": Timestamp(date: Date())
         ]) { error in
             if let error = error {
                 completion(.failure(error))
