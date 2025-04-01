@@ -285,10 +285,10 @@ class FirebaseService {
 // MARK: - Quiz Operations
 extension FirebaseService {
     func getQuizzes(category: QuizCategory, difficulty: QuizDifficulty, completion: @escaping (Result<[Quiz], Error>) -> Void) {
-        db.collection("quizzes")
-            .whereField("category", isEqualTo: category.rawValue)
+        // Path: aaaa/{category}/questions
+        db.collection("aaaa").document(category.rawValue).collection("questions")
             .whereField("difficulty", isEqualTo: difficulty.rawValue)
-            .getDocuments { snapshot, error in
+            .getDocuments(source: .default) { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
@@ -299,8 +299,36 @@ extension FirebaseService {
                     return
                 }
                 
-                let quizzes = documents.compactMap { Quiz.from($0) }
-                completion(.success(quizzes))
+                let questions = documents.compactMap { document -> Question? in
+                    guard let question = document.data()["question"] as? String,
+                          let correctAnswer = document.data()["correct_answer"] as? String,
+                          let options = document.data()["options"] as? [String: String] else {
+                        return nil
+                    }
+                    
+                    // Convert options dictionary to array
+                    let sortedOptions = options.sorted { $0.key < $1.key }.map { $0.value }
+                    
+                    return Question(
+                        text: question,
+                        options: sortedOptions,
+                        correctAnswer: correctAnswer,
+                        questionImage: nil,
+                        optionImages: nil
+                    )
+                }
+                
+                // Create a single Quiz object with all questions
+                let quiz = Quiz(
+                    id: UUID().uuidString,
+                    category: category,
+                    difficulty: difficulty,
+                    questions: questions,
+                    timePerQuestion: 30,  // Default values
+                    pointsPerQuestion: 10  // Default values
+                )
+                
+                completion(.success([quiz]))
             }
     }
     
