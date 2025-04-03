@@ -34,21 +34,69 @@ class MultiplayerGameService {
     
     // MARK: - Game Invitation Management
     
+    func listenForGameInvitations(completion: @escaping (Result<MultiplayerGame, Error>) -> Void) -> ListenerRegistration {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])))
+            return db.collection("dummy").addSnapshotListener { _, _ in }
+        }
+        
+        return db.collection("multiplayer_games")
+            .whereField("invited_id", isEqualTo: currentUserId)
+            .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents,
+                      let latestInvite = documents.first,
+                      let game = MultiplayerGame.from(latestInvite) else {
+                    return
+                }
+                
+                completion(.success(game))
+            }
+    }
+    
     func sendGameInvitation(to userId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])))
             return
         }
         
+        // First, check if there's already a pending invitation
+        db.collection("multiplayer_games")
+            .whereField("creator_id", isEqualTo: currentUserId)
+            .whereField("invited_id", isEqualTo: userId)
+            .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+            .getDocuments { [weak self] snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                // If there's already a pending invitation, return it
+                if let existingGame = snapshot?.documents.first.flatMap(MultiplayerGame.from) {
+                    completion(.success(existingGame))
+                    return
+                }
+                
+                // If no pending invitation exists, create a new one
+                self?.createNewGameInvitation(currentUserId: currentUserId, invitedUserId: userId, completion: completion)
+            }
+    }
+    
+    private func createNewGameInvitation(currentUserId: String, invitedUserId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
         let gameData: [String: Any] = [
             "creator_id": currentUserId,
-            "invited_id": userId,
+            "invited_id": invitedUserId,
             "status": GameStatus.pending.rawValue,
             "created_at": Timestamp(date: Date()),
             "current_question_index": 0,
             "player_scores": [
                 currentUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0],
-                userId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
+                invitedUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
             ]
         ]
         
@@ -79,7 +127,8 @@ class MultiplayerGameService {
         let status = accept ? GameStatus.accepted : GameStatus.rejected
         
         gameRef.updateData([
-            "status": status.rawValue
+            "status": status.rawValue,
+            "response_time": Timestamp(date: Date())
         ]) { error in
             if let error = error {
                 completion(.failure(error))
@@ -113,69 +162,90 @@ class MultiplayerGameService {
     }
     
     func setupGame(gameId: String, category: String, difficulty: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        // Convert category string to lowercase for Firestore path
-        let categoryPath = category.lowercased().replacingOccurrences(of: " ", with: "")
+        // First check if the game is accepted
+        let gameRef = db.collection("multiplayer_games").document(gameId)
         
-        print("📝 Loading questions for:")
-        print("   Category: \(category)")
-        print("   Category Path: \(categoryPath)")
-        print("   Difficulty: \(difficulty)")
-        print("   Full Path: aaaa/\(categoryPath)/questions")
-        
-        // First, fetch questions for the selected category
-        db.collection("aaaa").document(categoryPath).collection("questions")
-            .whereField("difficulty", isEqualTo: difficulty)
-            .getDocuments { [weak self] snapshot, error in
-                if let error = error {
-                    print("❌ Error loading questions: \(error.localizedDescription)")
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    print("❌ No questions found for category: \(category) and difficulty: \(difficulty)")
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No questions found"])))
-                    return
-                }
-                
-                print("✅ Found \(documents.count) questions")
-                
-                // Randomly select 5 questions
-                let shuffledDocs = documents.shuffled()
-                let selectedQuestions = Array(shuffledDocs.prefix(5))
-                let questionIds = selectedQuestions.map { "\(categoryPath)/questions/\($0.documentID)" }
-                
-                // Update game with questions
-                let gameRef = self?.db.collection("multiplayer_games").document(gameId)
-                gameRef?.updateData([
-                    "category": category,
-                    "difficulty": difficulty,
-                    "questions": questionIds,
-                    "status": GameStatus.inProgress.rawValue
-                ]) { error in
+        gameRef.getDocument { [weak self] document, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let game = document.flatMap(MultiplayerGame.from) else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"])))
+                return
+            }
+            
+            // Only proceed if the game is accepted
+            guard game.status == .accepted else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game must be accepted by both players before starting"])))
+                return
+            }
+            
+            // Convert category string to lowercase for Firestore path
+            let categoryPath = category.lowercased().replacingOccurrences(of: " ", with: "")
+            
+            print("📝 Loading questions for:")
+            print("   Category: \(category)")
+            print("   Category Path: \(categoryPath)")
+            print("   Difficulty: \(difficulty)")
+            print("   Full Path: aaaa/\(categoryPath)/questions")
+            
+            // Fetch questions for the selected category
+            self?.db.collection("aaaa").document(categoryPath).collection("questions")
+                .whereField("difficulty", isEqualTo: difficulty)
+                .getDocuments { snapshot, error in
                     if let error = error {
-                        print("❌ Error updating game: \(error.localizedDescription)")
+                        print("❌ Error loading questions: \(error.localizedDescription)")
                         completion(.failure(error))
                         return
                     }
                     
-                    gameRef?.getDocument { document, error in
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        print("❌ No questions found for category: \(category) and difficulty: \(difficulty)")
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No questions found"])))
+                        return
+                    }
+                    
+                    print("✅ Found \(documents.count) questions")
+                    
+                    // Randomly select 5 questions
+                    let shuffledDocs = documents.shuffled()
+                    let selectedQuestions = Array(shuffledDocs.prefix(5))
+                    let questionIds = selectedQuestions.map { "\(categoryPath)/questions/\($0.documentID)" }
+                    
+                    // Update game with questions
+                    gameRef.updateData([
+                        "category": category,
+                        "difficulty": difficulty,
+                        "questions": questionIds,
+                        "status": GameStatus.inProgress.rawValue,
+                        "start_time": Timestamp(date: Date())
+                    ]) { error in
                         if let error = error {
-                            print("❌ Error getting updated game: \(error.localizedDescription)")
+                            print("❌ Error updating game: \(error.localizedDescription)")
                             completion(.failure(error))
                             return
                         }
                         
-                        if let game = document.flatMap(MultiplayerGame.from) {
-                            print("✅ Game setup successful")
-                            completion(.success(game))
-                        } else {
-                            print("❌ Failed to parse game data")
-                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to setup game"])))
+                        gameRef.getDocument { document, error in
+                            if let error = error {
+                                print("❌ Error getting updated game: \(error.localizedDescription)")
+                                completion(.failure(error))
+                                return
+                            }
+                            
+                            if let game = document.flatMap(MultiplayerGame.from) {
+                                print("✅ Game setup successful")
+                                completion(.success(game))
+                            } else {
+                                print("❌ Failed to parse game data")
+                                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to setup game"])))
+                            }
                         }
                     }
                 }
-            }
+        }
     }
     
     func getQuestion(questionId: String, completion: @escaping (Result<Question, Error>) -> Void) {
