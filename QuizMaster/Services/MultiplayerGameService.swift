@@ -18,10 +18,10 @@ class MultiplayerGameService {
         ])
     }
     
-    func getOnlineUsers(completion: @escaping ([User]) -> Void) {
-        db.collection("users")
+    func getOnlineUsers(completion: @escaping ([User]) -> Void) -> ListenerRegistration {
+        return db.collection("users")
             .whereField("is_online", isEqualTo: true)
-            .getDocuments { snapshot, error in
+            .addSnapshotListener { snapshot, error in
                 guard let documents = snapshot?.documents else {
                     completion([])
                     return
@@ -103,45 +103,42 @@ class MultiplayerGameService {
     
     // MARK: - Game Setup and Management
     
-    func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) {
-        db.collection("quizzes")
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
-                
-                let categories = Array(Set(documents.compactMap { document in
-                    document.data()["category"] as? String
-                })).sorted()
-                
-                completion(.success(categories))
+    func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) -> ListenerRegistration {
+        return db.collection("aaaa").addSnapshotListener { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
             }
+            
+            guard let documents = snapshot?.documents else {
+                completion(.success([]))
+                return
+            }
+            
+            let categories = documents.map { $0.documentID }.sorted()
+            completion(.success(categories))
+        }
     }
     
     func setupGame(gameId: String, category: String, difficulty: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        // First, fetch questions for the selected category and difficulty
-        db.collection("quizzes")
-            .whereField("category", isEqualTo: category)
+        // First, fetch questions for the selected category
+        db.collection("aaaa").document(category).collection("questions")
             .whereField("difficulty", isEqualTo: difficulty)
-            .limit(to: 5)  // Get 5 questions for the game
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                guard let documents = snapshot?.documents else {
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No questions found"])))
                     return
                 }
                 
-                let questionIds = documents.map { $0.documentID }
+                // Randomly select 5 questions
+                let shuffledDocs = documents.shuffled()
+                let selectedQuestions = Array(shuffledDocs.prefix(5))
+                let questionIds = selectedQuestions.map { "\(category)/questions/\($0.documentID)" }
                 
                 // Update game with questions
                 let gameRef = self?.db.collection("multiplayer_games").document(gameId)
@@ -173,30 +170,41 @@ class MultiplayerGameService {
     }
     
     func getQuestion(questionId: String, completion: @escaping (Result<Question, Error>) -> Void) {
-        db.collection("quizzes").document(questionId).getDocument { snapshot, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data = snapshot?.data(),
-                  let questionText = data["question"] as? String,
-                  let correctAnswer = data["correct_answer"] as? String,
-                  let options = data["options"] as? [String] else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid question data"])))
-                return
-            }
-            
-            let question = Question(
-                text: questionText,
-                options: options,
-                correctAnswer: correctAnswer,
-                questionImage: data["question_image"] as? String,
-                optionImages: data["option_images"] as? [String]
-            )
-            
-            completion(.success(question))
+        // questionId format: "category/questions/questionId"
+        let components = questionId.components(separatedBy: "/")
+        guard components.count == 3 else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid question ID format"])))
+            return
         }
+        
+        let category = components[0]
+        let questionDocId = components[2]
+        
+        db.collection("aaaa").document(category).collection("questions").document(questionDocId)
+            .getDocument { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let data = snapshot?.data(),
+                      let questionText = data["question"] as? String,
+                      let correctAnswer = data["correct_answer"] as? String,
+                      let options = data["options"] as? [String] else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid question data"])))
+                    return
+                }
+                
+                let question = Question(
+                    text: questionText,
+                    options: options,
+                    correctAnswer: correctAnswer,
+                    questionImage: data["question_image"] as? String,
+                    optionImages: data["option_images"] as? [String]
+                )
+                
+                completion(.success(question))
+            }
     }
     
     func submitAnswer(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {

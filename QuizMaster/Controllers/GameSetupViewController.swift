@@ -1,4 +1,5 @@
 import UIKit
+import FirebaseFirestore
 
 class GameSetupViewController: UIViewController {
     private let game: MultiplayerGame
@@ -27,6 +28,10 @@ class GameSetupViewController: UIViewController {
     private let difficulties = ["Easy", "Medium", "Hard"]
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
+    // Listeners
+    private var categoryListener: ListenerRegistration?
+    private var gameListener: ListenerRegistration?
+    
     init(game: MultiplayerGame) {
         self.game = game
         super.init(nibName: nil, bundle: nil)
@@ -41,6 +46,12 @@ class GameSetupViewController: UIViewController {
         setupUI()
         setupListeners()
         fetchCategories()
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        categoryListener?.remove()
+        gameListener?.remove()
     }
     
     private func setupUI() {
@@ -99,7 +110,7 @@ class GameSetupViewController: UIViewController {
     
     private func setupListeners() {
         // Listen for game status changes
-        multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
+        gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
             switch result {
             case .success(let updatedGame):
                 if updatedGame.status == .inProgress {
@@ -118,7 +129,7 @@ class GameSetupViewController: UIViewController {
         loadingIndicator.startAnimating()
         startButton.isEnabled = false
         
-        multiplayerService.getQuizCategories { [weak self] result in
+        categoryListener = multiplayerService.getQuizCategories { [weak self] result in
             DispatchQueue.main.async {
                 self?.loadingIndicator.stopAnimating()
                 self?.startButton.isEnabled = true
