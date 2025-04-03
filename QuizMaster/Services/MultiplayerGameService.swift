@@ -40,48 +40,28 @@ class MultiplayerGameService {
             return db.collection("dummy").addSnapshotListener { _, _ in }
         }
         
-        // First, try with ordering
-        let query = db.collection("multiplayer_games")
+        // Use a simpler query that doesn't require a composite index
+        return db.collection("multiplayer_games")
             .whereField("invited_id", isEqualTo: currentUserId)
             .whereField("status", isEqualTo: GameStatus.pending.rawValue)
-            .order(by: "created_at", descending: true)
-        
-        return query.addSnapshotListener { snapshot, error in
-            if let error = error {
-                // If we get an index error, fall back to basic query
-                if (error.localizedDescription.contains("requires an index")) {
-                    print("Warning: Falling back to basic query without ordering")
-                    // Set up basic query without ordering
-                    self.db.collection("multiplayer_games")
-                        .whereField("invited_id", isEqualTo: currentUserId)
-                        .whereField("status", isEqualTo: GameStatus.pending.rawValue)
-                        .getDocuments { snapshot, error in
-                            if let error = error {
-                                completion(.failure(error))
-                                return
-                            }
-                            
-                            if let document = snapshot?.documents.first,
-                               let game = MultiplayerGame.from(document) {
-                                completion(.success(game))
-                            }
-                        }
-                } else {
+            .addSnapshotListener { [weak self] snapshot, error in
+                if let error = error {
+                    print("Error in game invitations listener: \(error.localizedDescription)")
                     completion(.failure(error))
+                    return
                 }
-                return
-            }
-            
-            guard let snapshot = snapshot else { return }
-            
-            snapshot.documentChanges.forEach { change in
-                if change.type == .added || change.type == .modified {
-                    if let game = MultiplayerGame.from(change.document) {
-                        completion(.success(game))
-                    }
+                
+                guard let snapshot = snapshot else { return }
+                
+                // Handle document changes and sort in memory
+                let games = snapshot.documents.compactMap { MultiplayerGame.from($0) }
+                    .sorted { $0.createdAt > $1.createdAt } // Sort by created_at in descending order
+                
+                // Process each game invitation
+                games.forEach { game in
+                    completion(.success(game))
                 }
             }
-        }
     }
     
     func sendGameInvitation(to userId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
@@ -479,5 +459,32 @@ class MultiplayerGameService {
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse game data"])))
                 }
             }
+    }
+    
+    // Add retry mechanism for Firestore operations
+    private func retryOperation<T>(
+        maxAttempts: Int = 3,
+        operation: @escaping (@escaping (Result<T, Error>) -> Void) -> Void,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) {
+        func attempt(remaining: Int) {
+            operation { result in
+                switch result {
+                case .success(let value):
+                    completion(.success(value))
+                case .failure(let error):
+                    if remaining > 1 && (error.localizedDescription.contains("BloomFilter") || error.localizedDescription.contains("requires an index")) {
+                        // Wait briefly before retrying
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
+                            attempt(remaining: remaining - 1)
+                        }
+                    } else {
+                        completion(.failure(error))
+                    }
+                }
+            }
+        }
+        
+        attempt(remaining: maxAttempts)
     }
 } 
