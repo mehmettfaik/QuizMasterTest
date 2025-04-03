@@ -103,42 +103,47 @@ class MultiplayerGameService {
     
     // MARK: - Game Setup and Management
     
-    func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) -> ListenerRegistration {
-        return db.collection("aaaa").addSnapshotListener { snapshot, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let documents = snapshot?.documents else {
-                completion(.success([]))
-                return
-            }
-            
-            let categories = documents.map { $0.documentID }.sorted()
-            completion(.success(categories))
-        }
+    func getQuizCategories(completion: @escaping (Result<[QuizCategory], Error>) -> Void) -> ListenerRegistration {
+        // Return all available categories from QuizCategory enum
+        let categories = QuizCategory.allCases.sorted { $0.rawValue < $1.rawValue }
+        completion(.success(categories))
+        
+        // Return a dummy listener since we don't need real-time updates for static categories
+        return db.collection("dummy").addSnapshotListener { _, _ in }
     }
     
     func setupGame(gameId: String, category: String, difficulty: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
+        // Convert category string to lowercase for Firestore path
+        let categoryPath = category.lowercased().replacingOccurrences(of: " ", with: "")
+        
+        print("📝 Loading questions for:")
+        print("   Category: \(category)")
+        print("   Category Path: \(categoryPath)")
+        print("   Difficulty: \(difficulty)")
+        print("   Full Path: aaaa/\(categoryPath)/questions")
+        
         // First, fetch questions for the selected category
-        db.collection("aaaa").document(category).collection("questions")
+        db.collection("aaaa").document(categoryPath).collection("questions")
             .whereField("difficulty", isEqualTo: difficulty)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
+                    print("❌ Error loading questions: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("❌ No questions found for category: \(category) and difficulty: \(difficulty)")
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No questions found"])))
                     return
                 }
                 
+                print("✅ Found \(documents.count) questions")
+                
                 // Randomly select 5 questions
                 let shuffledDocs = documents.shuffled()
                 let selectedQuestions = Array(shuffledDocs.prefix(5))
-                let questionIds = selectedQuestions.map { "\(category)/questions/\($0.documentID)" }
+                let questionIds = selectedQuestions.map { "\(categoryPath)/questions/\($0.documentID)" }
                 
                 // Update game with questions
                 let gameRef = self?.db.collection("multiplayer_games").document(gameId)
@@ -149,19 +154,23 @@ class MultiplayerGameService {
                     "status": GameStatus.inProgress.rawValue
                 ]) { error in
                     if let error = error {
+                        print("❌ Error updating game: \(error.localizedDescription)")
                         completion(.failure(error))
                         return
                     }
                     
                     gameRef?.getDocument { document, error in
                         if let error = error {
+                            print("❌ Error getting updated game: \(error.localizedDescription)")
                             completion(.failure(error))
                             return
                         }
                         
                         if let game = document.flatMap(MultiplayerGame.from) {
+                            print("✅ Game setup successful")
                             completion(.success(game))
                         } else {
+                            print("❌ Failed to parse game data")
                             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to setup game"])))
                         }
                     }
@@ -180,27 +189,49 @@ class MultiplayerGameService {
         let category = components[0]
         let questionDocId = components[2]
         
+        print("📝 Loading question:")
+        print("   Category: \(category)")
+        print("   Question ID: \(questionDocId)")
+        print("   Full Path: aaaa/\(category)/questions/\(questionDocId)")
+        
         db.collection("aaaa").document(category).collection("questions").document(questionDocId)
             .getDocument { snapshot, error in
                 if let error = error {
+                    print("❌ Error loading question: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
-                guard let data = snapshot?.data(),
-                      let questionText = data["question"] as? String,
+                guard let data = snapshot?.data() else {
+                    print("❌ No question data found")
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Question not found"])))
+                    return
+                }
+                
+                guard let questionText = data["question"] as? String,
                       let correctAnswer = data["correct_answer"] as? String,
                       let options = data["options"] as? [String] else {
+                    print("❌ Invalid question data:", data)
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid question data"])))
                     return
                 }
+                
+                let questionImage = data["question_image"] as? String
+                let optionImages = data["option_images"] as? [String]
+                
+                print("✅ Successfully loaded question:")
+                print("   Question:", questionText)
+                print("   Options:", options)
+                print("   Correct Answer:", correctAnswer)
+                print("   Question Image:", questionImage ?? "None")
+                print("   Option Images:", optionImages ?? "None")
                 
                 let question = Question(
                     text: questionText,
                     options: options,
                     correctAnswer: correctAnswer,
-                    questionImage: data["question_image"] as? String,
-                    optionImages: data["option_images"] as? [String]
+                    questionImage: questionImage,
+                    optionImages: optionImages
                 )
                 
                 completion(.success(question))

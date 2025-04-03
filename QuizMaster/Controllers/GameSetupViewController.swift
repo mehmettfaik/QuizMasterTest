@@ -24,7 +24,7 @@ class GameSetupViewController: UIViewController {
         return button
     }()
     
-    private var categories: [String] = []
+    private var categories: [QuizCategory] = []
     private let difficulties = ["Easy", "Medium", "Hard"]
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
@@ -159,7 +159,7 @@ class GameSetupViewController: UIViewController {
         
         multiplayerService.setupGame(
             gameId: game.id,
-            category: selectedCategory,
+            category: selectedCategory.rawValue,
             difficulty: selectedDifficulty
         ) { [weak self] result in
             DispatchQueue.main.async {
@@ -193,6 +193,6 @@ extension GameSetupViewController: UIPickerViewDelegate, UIPickerViewDataSource 
     }
     
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        return pickerView == categoryPicker ? categories[row] : difficulties[row]
+        return pickerView == categoryPicker ? categories[row].rawValue : difficulties[row]
     }
 } 
