@@ -2,31 +2,12 @@ import UIKit
 import FirebaseFirestore
 
 class GameWaitingViewController: UIViewController {
-    private let game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
+    private var invitationListener: ListenerRegistration?
     private var gameListener: ListenerRegistration?
+    private var game: MultiplayerGame?
     
-    private let activityIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
-        indicator.hidesWhenStopped = true
-        return indicator
-    }()
-    
-    private let statusLabel: UILabel = {
-        let label = UILabel()
-        label.textAlignment = .center
-        label.numberOfLines = 0
-        label.font = .systemFont(ofSize: 16)
-        return label
-    }()
-    
-    private let blurView: UIVisualEffectView = {
-        let blurEffect = UIBlurEffect(style: .light)
-        let view = UIVisualEffectView(effect: blurEffect)
-        return view
-    }()
-    
-    init(game: MultiplayerGame) {
+    init(game: MultiplayerGame? = nil) {
         self.game = game
         super.init(nibName: nil, bundle: nil)
     }
@@ -35,60 +16,140 @@ class GameWaitingViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
     
+    private let statusLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Waiting for opponent..."
+        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.textAlignment = .center
+        label.textColor = .darkGray
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private let activityIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.color = .primaryPurple
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupGameListener()
+        
+        if let game = game {
+            statusLabel.text = "Waiting for game to start..."
+            listenForGameStart(game)
+        } else {
+            setupListeners()
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        invitationListener?.remove()
         gameListener?.remove()
     }
     
     private func setupUI() {
-        title = "Waiting"
         view.backgroundColor = .systemBackground
+        title = "Game Invitation"
         
-        view.addSubview(blurView)
-        blurView.contentView.addSubview(activityIndicator)
-        blurView.contentView.addSubview(statusLabel)
-        
-        [blurView, activityIndicator, statusLabel].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-        }
+        view.addSubview(statusLabel)
+        view.addSubview(activityIndicator)
         
         NSLayoutConstraint.activate([
-            blurView.topAnchor.constraint(equalTo: view.topAnchor),
-            blurView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            blurView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -40),
-            
-            statusLabel.topAnchor.constraint(equalTo: activityIndicator.bottomAnchor, constant: 20),
-            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+            activityIndicator.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 20)
         ])
         
         activityIndicator.startAnimating()
-        statusLabel.text = "Waiting for the host to set up the game..."
     }
     
-    private func setupGameListener() {
-        gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
-            switch result {
-            case .success(let updatedGame):
-                if updatedGame.status == .inProgress {
-                    DispatchQueue.main.async {
-                        let gameVC = MultiplayerGameViewController(game: updatedGame)
-                        self?.navigationController?.setViewControllers([gameVC], animated: true)
-                    }
+    private func setupListeners() {
+        // Listen for incoming game invitations
+        invitationListener = multiplayerService.listenForGameInvitations { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let game):
+                    self?.handleGameInvitation(game)
+                case .failure(let error):
+                    print("Error listening for game invitations: \(error.localizedDescription)")
                 }
-            case .failure(let error):
-                print("Error listening for game updates: \(error.localizedDescription)")
             }
         }
+    }
+    
+    private func handleGameInvitation(_ game: MultiplayerGame) {
+        // Show invitation alert
+        let alert = UIAlertController(
+            title: "Game Invitation",
+            message: "You have been invited to play a quiz game!",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+            self?.acceptInvitation(game)
+        })
+        
+        alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { [weak self] _ in
+            self?.declineInvitation(game)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func acceptInvitation(_ game: MultiplayerGame) {
+        statusLabel.text = "Accepting invitation..."
+        
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: true) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updatedGame):
+                    self?.statusLabel.text = "Waiting for game to start..."
+                    self?.listenForGameStart(updatedGame)
+                case .failure(let error):
+                    self?.showAlert(title: "Error", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func declineInvitation(_ game: MultiplayerGame) {
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: false) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self?.navigationController?.popViewController(animated: true)
+                case .failure(let error):
+                    self?.showAlert(title: "Error", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func listenForGameStart(_ game: MultiplayerGame) {
+        gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updatedGame):
+                    if updatedGame.status == .inProgress {
+                        let gameVC = MultiplayerGameViewController(game: updatedGame)
+                        self?.navigationController?.pushViewController(gameVC, animated: true)
+                    }
+                case .failure(let error):
+                    self?.showAlert(title: "Error", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 } 
