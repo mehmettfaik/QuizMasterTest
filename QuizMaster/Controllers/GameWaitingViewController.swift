@@ -1,5 +1,6 @@
 import UIKit
 import FirebaseFirestore
+import FirebaseAuth
 
 class GameWaitingViewController: UIViewController {
     private let multiplayerService = MultiplayerGameService.shared
@@ -90,10 +91,54 @@ class GameWaitingViewController: UIViewController {
     
     private var isShowingInvitation = false
     
+    private func listenForGameStart(_ game: MultiplayerGame) {
+        gameListener?.remove() // Remove any existing listener
+        
+        statusLabel.text = "Waiting for game to start..."
+        
+        gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updatedGame):
+                    self?.handleGameStatusUpdate(updatedGame)
+                case .failure(let error):
+                    self?.showAlert(title: "Error", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func handleGameStatusUpdate(_ game: MultiplayerGame) {
+        switch game.status {
+        case .inProgress:
+            let gameVC = MultiplayerGameViewController(game: game)
+            navigationController?.pushViewController(gameVC, animated: true)
+        case .rejected:
+            showAlert(title: "Game Cancelled", message: "The game has been cancelled.") { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            }
+        case .accepted:
+            if game.creatorId == Auth.auth().currentUser?.uid {
+                statusLabel.text = "Game accepted! Select category and difficulty to start."
+            } else {
+                statusLabel.text = "Waiting for \(game.creatorName) to start the game..."
+            }
+        case .pending:
+            statusLabel.text = "Waiting for response..."
+        case .completed:
+            showAlert(title: "Game Over", message: "The game has ended.") { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            }
+        case .cancelled:
+            showAlert(title: "Game Cancelled", message: "The game has been cancelled by the other player.") { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            }
+        }
+    }
+    
     private func handleGameInvitation(_ game: MultiplayerGame) {
         isShowingInvitation = true
         
-        // Show invitation alert with creator's name
         let alert = UIAlertController(
             title: "Game Invitation",
             message: "\(game.creatorName) has invited you to play a quiz game!",
@@ -121,13 +166,16 @@ class GameWaitingViewController: UIViewController {
     }
     
     private func acceptInvitation(_ game: MultiplayerGame) {
-        statusLabel.text = "Accepting invitation from \(game.creatorName)..."
+        statusLabel.text = "Accepting invitation..."
+        activityIndicator.startAnimating()
         
         multiplayerService.respondToGameInvitation(gameId: game.id, accept: true) { [weak self] result in
             DispatchQueue.main.async {
+                self?.activityIndicator.stopAnimating()
+                
                 switch result {
                 case .success(let updatedGame):
-                    self?.statusLabel.text = "Waiting for \(game.creatorName) to start the game..."
+                    self?.statusLabel.text = "Waiting for \(updatedGame.creatorName) to start the game..."
                     self?.listenForGameStart(updatedGame)
                 case .failure(let error):
                     self?.showAlert(title: "Error", message: error.localizedDescription)
@@ -138,9 +186,12 @@ class GameWaitingViewController: UIViewController {
     
     private func declineInvitation(_ game: MultiplayerGame) {
         statusLabel.text = "Declining invitation..."
+        activityIndicator.startAnimating()
         
         multiplayerService.respondToGameInvitation(gameId: game.id, accept: false) { [weak self] result in
             DispatchQueue.main.async {
+                self?.activityIndicator.stopAnimating()
+                
                 switch result {
                 case .success:
                     self?.navigationController?.popViewController(animated: true)
@@ -151,30 +202,9 @@ class GameWaitingViewController: UIViewController {
         }
     }
     
-    private func listenForGameStart(_ game: MultiplayerGame) {
-        gameListener?.remove() // Remove any existing listener
-        
-        gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let updatedGame):
-                    if updatedGame.status == .inProgress {
-                        let gameVC = MultiplayerGameViewController(game: updatedGame)
-                        self?.navigationController?.pushViewController(gameVC, animated: true)
-                    } else if updatedGame.status == .rejected {
-                        self?.showAlert(title: "Invitation Declined", message: "\(updatedGame.invitedName) declined the game invitation.")
-                        self?.navigationController?.popViewController(animated: true)
-                    }
-                case .failure(let error):
-                    self?.showAlert(title: "Error", message: error.localizedDescription)
-                }
-            }
-        }
-    }
-    
-    private func showAlert(title: String, message: String) {
+    private func showAlert(title: String, message: String, completion: ((UIAlertAction) -> Void)? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: completion))
         present(alert, animated: true)
     }
 } 

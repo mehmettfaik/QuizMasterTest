@@ -52,7 +52,6 @@ class MultiplayerGameService {
                 
                 guard let snapshot = snapshot else { return }
                 
-                // Handle document changes
                 snapshot.documentChanges.forEach { change in
                     if change.type == .added || change.type == .modified {
                         if let game = MultiplayerGame.from(change.document) {
@@ -144,31 +143,85 @@ class MultiplayerGameService {
     }
     
     func respondToGameInvitation(gameId: String, accept: Bool, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        let gameRef = db.collection("multiplayer_games").document(gameId)
         let status = accept ? GameStatus.accepted : GameStatus.rejected
         
-        gameRef.updateData([
+        updateGameStatus(gameId: gameId, status: status) { [weak self] result in
+            switch result {
+            case .success:
+                // Get the updated game data
+                self?.db.collection("multiplayer_games").document(gameId).getDocument { document, error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    if let game = document.flatMap(MultiplayerGame.from) {
+                        // If accepted, notify the creator
+                        if accept {
+                            self?.notifyGameAccepted(game: game)
+                        }
+                        completion(.success(game))
+                    } else {
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to update game"])))
+                    }
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    func updateGameStatus(gameId: String, status: GameStatus, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        var updateData: [String: Any] = [
             "status": status.rawValue,
-            "response_time": Timestamp(date: Date())
-        ]) { error in
+            "last_updated": Timestamp(date: Date())
+        ]
+        
+        if status == .accepted {
+            updateData["response_time"] = Timestamp(date: Date())
+        } else if status == .inProgress {
+            updateData["start_time"] = Timestamp(date: Date())
+        }
+        
+        gameRef.updateData(updateData) { error in
             if let error = error {
                 completion(.failure(error))
-                return
+            } else {
+                completion(.success(()))
             }
-            
-            gameRef.getDocument { document, error in
+        }
+    }
+    
+    private func notifyGameAccepted(game: MultiplayerGame) {
+        // Add notification for the creator
+        let notificationData: [String: Any] = [
+            "type": "game_accepted",
+            "game_id": game.id,
+            "from_user_id": game.invitedId,
+            "from_user_name": game.invitedName,
+            "created_at": Timestamp(date: Date()),
+            "is_read": false
+        ]
+        
+        db.collection("users").document(game.creatorId)
+            .collection("notifications").addDocument(data: notificationData)
+    }
+    
+    func checkPendingInvitations(userId: String, completion: @escaping (Bool) -> Void) {
+        db.collection("multiplayer_games")
+            .whereField("invited_id", isEqualTo: userId)
+            .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+            .getDocuments { snapshot, error in
                 if let error = error {
-                    completion(.failure(error))
+                    print("Error checking pending invitations: \(error.localizedDescription)")
+                    completion(false)
                     return
                 }
                 
-                if let game = document.flatMap(MultiplayerGame.from) {
-                    completion(.success(game))
-                } else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to update game"])))
-                }
+                completion(!(snapshot?.documents.isEmpty ?? true))
             }
-        }
     }
     
     // MARK: - Game Setup and Management
@@ -386,19 +439,23 @@ class MultiplayerGameService {
     }
     
     func listenForGameUpdates(gameId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) -> ListenerRegistration {
-        let gameRef = db.collection("multiplayer_games").document(gameId)
-        
-        return gameRef.addSnapshotListener { document, error in
-            if let error = error {
-                completion(.failure(error))
-                return
+        return db.collection("multiplayer_games").document(gameId)
+            .addSnapshotListener { documentSnapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let document = documentSnapshot else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Document does not exist"])))
+                    return
+                }
+                
+                if let game = MultiplayerGame.from(document) {
+                    completion(.success(game))
+                } else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse game data"])))
+                }
             }
-            
-            if let game = document.flatMap(MultiplayerGame.from) {
-                completion(.success(game))
-            } else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse game data"])))
-            }
-        }
     }
 } 
