@@ -27,9 +27,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if Auth.auth().currentUser != nil {
             // Kullanıcı giriş yapmışsa TabBarController'ı göster
             window.rootViewController = MainTabBarController()
-            if let userId = Auth.auth().currentUser?.uid {
-                FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: true)
-            }
+            updateUserOnlineStatus(isOnline: true)
         } else {
             // Kullanıcı giriş yapmamışsa LoginViewController'ı göster
             window.rootViewController = LoginViewController()
@@ -43,46 +41,42 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This occurs shortly after the scene enters the background, or when its session is discarded.
         // Release any resources associated with this scene that can be re-created the next time the scene connects.
         // The scene may re-connect later, as its session was not necessarily discarded (see `application:didDiscardSceneSessions` instead).
-        
-        // Set user as offline when scene disconnects
-        if let userId = Auth.auth().currentUser?.uid {
-            FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: false)
-        }
+        updateUserOnlineStatus(isOnline: false)
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Called when the scene has moved from an inactive state to an active state.
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
-        
-        // Set user as online when scene becomes active
-        if let userId = Auth.auth().currentUser?.uid {
-            FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: true)
-        }
+        updateUserOnlineStatus(isOnline: true)
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
         // Called when the scene will move from an active state to an inactive state.
         // This may occur due to temporary interruptions (ex. an incoming phone call).
+        updateUserOnlineStatus(isOnline: false)
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
         // Called as the scene transitions from the background to the foreground.
         // Use this method to undo the changes made on entering the background.
-        
-        // Set user as online when app enters foreground
-        if let userId = Auth.auth().currentUser?.uid {
-            FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: true)
-        }
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
         // Called as the scene transitions from the foreground to the background.
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
+    }
+
+    private func updateUserOnlineStatus(isOnline: Bool) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        // Set user as offline when app enters background
-        if let userId = Auth.auth().currentUser?.uid {
-            FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: false)
+        db.collection("users").document(userId).updateData([
+            "isOnline": isOnline,
+            "lastSeen": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                print("Error updating online status: \(error.localizedDescription)")
+            }
         }
     }
 }

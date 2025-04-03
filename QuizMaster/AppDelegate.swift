@@ -8,7 +8,6 @@
 import UIKit
 import Firebase
 import FirebaseMessaging
-import FirebaseAuth
 import UserNotifications
 
 @main
@@ -55,13 +54,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
         // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
     }
-    
-    // MARK: - Application Lifecycle
-    func applicationWillTerminate(_ application: UIApplication) {
-        // Set user as offline when app is closing
-        if let userId = Auth.auth().currentUser?.uid {
-            FirebaseService.shared.updateOnlineStatus(userId: userId, isOnline: false)
-        }
-    }
+
+
 }
 

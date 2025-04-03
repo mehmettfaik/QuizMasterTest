@@ -1,7 +1,6 @@
 import UIKit
 import Combine
 import FirebaseFirestore
-import FirebaseAuth
 
 // MARK: - UIViewController Extension
 extension UIViewController {
@@ -196,23 +195,6 @@ class ProfileViewController: UIViewController {
         return button
     }()
     
-    private let onlineButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Çevrimiçi Yarışma", for: .normal)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = .systemGreen
-        button.layer.cornerRadius = 20
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        button.layer.shadowColor = UIColor.systemGreen.cgColor
-        button.layer.shadowOffset = CGSize(width: 0, height: 4)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 8
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private var battleRequestListener: ListenerRegistration?
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationController?.navigationBar.isHidden = false
@@ -222,23 +204,11 @@ class ProfileViewController: UIViewController {
         setupCollectionView()
         setupBindings()
         setupNavigationBar()
-        setupButtons()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         viewModel.loadUserProfile()
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        updateOnlineStatus(isOnline: true)
-        setupBattleRequestListener()
-    }
-    
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        battleRequestListener?.remove()
     }
     
     private func setupUI() {
@@ -261,7 +231,6 @@ class ProfileViewController: UIViewController {
         contentView.addSubview(nameLabel)
         contentView.addSubview(emailLabel)
         contentView.addSubview(friendsButton)
-        contentView.addSubview(onlineButton)
         contentView.addSubview(achievementsLabel)
         contentView.addSubview(achievementsCollectionView)
         contentView.addSubview(loadingIndicator)
@@ -291,17 +260,12 @@ class ProfileViewController: UIViewController {
             emailLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             emailLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
-            friendsButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            friendsButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            friendsButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.45),
-            friendsButton.heightAnchor.constraint(equalToConstant: 50),
+            friendsButton.topAnchor.constraint(equalTo: emailLabel.bottomAnchor, constant: 40),
+            friendsButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
+            friendsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30),
+            friendsButton.heightAnchor.constraint(equalToConstant: 60),
             
-            onlineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            onlineButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            onlineButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.45),
-            onlineButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            achievementsLabel.topAnchor.constraint(equalTo: friendsButton.topAnchor, constant: 50),
+            achievementsLabel.topAnchor.constraint(equalTo: friendsButton.bottomAnchor, constant: 50),
             achievementsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             achievementsLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
@@ -321,7 +285,6 @@ class ProfileViewController: UIViewController {
         
         // Add action to friends button
         friendsButton.addTarget(self, action: #selector(friendsButtonTapped), for: .touchUpInside)
-        onlineButton.addTarget(self, action: #selector(onlineButtonTapped), for: .touchUpInside)
     }
     
     private func setupCollectionView() {
@@ -396,26 +359,6 @@ class ProfileViewController: UIViewController {
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
     }
     
-    private func setupButtons() {
-        view.addSubview(friendsButton)
-        view.addSubview(onlineButton)
-        
-        NSLayoutConstraint.activate([
-            friendsButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            friendsButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            friendsButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.45),
-            friendsButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            onlineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            onlineButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            onlineButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.45),
-            onlineButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
-        
-        friendsButton.addTarget(self, action: #selector(friendsButtonTapped), for: .touchUpInside)
-        onlineButton.addTarget(self, action: #selector(onlineButtonTapped), for: .touchUpInside)
-    }
-    
     @objc private func settingsTapped() {
         let settingsVC = SettingsViewController(viewModel: viewModel)
         let navController = UINavigationController(rootViewController: settingsVC)
@@ -423,115 +366,18 @@ class ProfileViewController: UIViewController {
     }
     
     @objc private func friendsButtonTapped() {
-        let friendsVC = FriendsViewController()
-        navigationController?.pushViewController(friendsVC, animated: true)
-    }
-    
-    @objc private func onlineButtonTapped() {
-        let onlineUsersVC = OnlineUsersViewController()
-        let navController = UINavigationController(rootViewController: onlineUsersVC)
-        present(navController, animated: true)
-    }
-    
-    private func updateOnlineStatus(isOnline: Bool) {
-        guard let currentUser = Auth.auth().currentUser else { return }
-        FirebaseService.shared.updateOnlineStatus(userId: currentUser.uid, isOnline: isOnline)
-    }
-    
-    private func setupBattleRequestListener() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let friendsListVC = FriendsListViewController(userId: viewModel.currentUserId ?? "")
+        let nav = UINavigationController(rootViewController: friendsListVC)
         
-        battleRequestListener = FirebaseService.shared.listenForBattleRequests(userId: currentUserId) { [weak self] result in
-            switch result {
-            case .success(let battles):
-                // Sadece yeni gelen istekleri göster
-                let newBattles = battles.filter { battle in
-                    let requestTime = battle.createdAt ?? Date()
-                    return Date().timeIntervalSince(requestTime) < 30 // 30 saniye içindeki istekleri göster
-                }
-                
-                if !newBattles.isEmpty {
-                    self?.showBattleRequest(battle: newBattles[0])
-                }
-                
-            case .failure(let error):
-                print("Error listening for battle requests: \(error)")
-            }
-        }
-    }
-    
-    private func showBattleRequest(battle: QuizBattle) {
-        let alert = UIAlertController(
-            title: "Düello İsteği",
-            message: "\(battle.challengerName) sizi düelloya davet ediyor!",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "Kabul Et", style: .default) { [weak self] _ in
-            FirebaseService.shared.respondToBattleRequest(battleId: battle.id, status: .accepted) { result in
-                switch result {
-                case .success:
-                    // İsteği kabul eden kullanıcı beklemede kalacak
-                    self?.showWaitingAlert(battle: battle)
-                    
-                case .failure(let error):
-                    self?.showErrorAlert(error)
-                }
-            }
-        })
-        
-        alert.addAction(UIAlertAction(title: "Reddet", style: .destructive) { [weak self] _ in
-            FirebaseService.shared.respondToBattleRequest(battleId: battle.id, status: .rejected) { result in
-                if case .failure(let error) = result {
-                    self?.showErrorAlert(error)
-                }
-            }
-        })
-        
-        present(alert, animated: true)
-    }
-    
-    private func showWaitingAlert(battle: QuizBattle) {
-        let alert = UIAlertController(
-            title: "Bekleyiniz",
-            message: "Rakibiniz kategori ve zorluk seviyesi seçiyor...",
-            preferredStyle: .alert
-        )
-        
-        // Kategori seçimi beklenirken battle durumunu dinle
-        let battleListener = FirebaseService.shared.listenForBattleStatus(battleId: battle.id) { [weak self] result in
-            switch result {
-            case .success(let updatedBattle):
-                if updatedBattle.status == .ongoing,
-                   !updatedBattle.category.isEmpty,
-                   let quizId = updatedBattle.quizId {
-                    // Quiz başladığında alert'i kapat ve quiz ekranına geç
-                    alert.dismiss(animated: true) {
-                        FirebaseService.shared.getQuiz(id: quizId, category: updatedBattle.category) { result in
-                            switch result {
-                            case .success(let quiz):
-                                let battleVC = BattleQuizViewController(quiz: quiz, battle: updatedBattle, isChallenger: false)
-                                battleVC.modalPresentationStyle = .fullScreen
-                                self?.present(battleVC, animated: true)
-                                
-                            case .failure(let error):
-                                self?.showErrorAlert(error)
-                            }
-                        }
-                    }
-                }
-                
-            case .failure(let error):
-                print("Error listening for battle status: \(error)")
+        if #available(iOS 15.0, *) {
+            if let sheet = nav.sheetPresentationController {
+                sheet.detents = [.large()]
+                sheet.prefersGrabberVisible = true
+                sheet.preferredCornerRadius = 20
             }
         }
         
-        // Alert kapatıldığında listener'ı temizle
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel) { _ in
-            battleListener.remove()
-        })
-        
-        present(alert, animated: true)
+        present(nav, animated: true)
     }
 }
 
