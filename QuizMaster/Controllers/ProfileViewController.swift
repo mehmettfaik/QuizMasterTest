@@ -1,6 +1,7 @@
 import UIKit
 import Combine
 import FirebaseFirestore
+import FirebaseAuth
 
 // MARK: - UIViewController Extension
 extension UIViewController {
@@ -195,6 +196,24 @@ class ProfileViewController: UIViewController {
         return button
     }()
     
+    private let onlineButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Online", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .systemGreen
+        button.layer.cornerRadius = 20
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.layer.shadowColor = UIColor.systemGreen.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowOpacity = 0.3
+        button.layer.shadowRadius = 8
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    private let multiplayerService = MultiplayerGameService.shared
+    private var gameInvitationListener: ListenerRegistration?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationController?.navigationBar.isHidden = false
@@ -204,11 +223,23 @@ class ProfileViewController: UIViewController {
         setupCollectionView()
         setupBindings()
         setupNavigationBar()
+        setupGameInvitationListener()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         viewModel.loadUserProfile()
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            multiplayerService.updateOnlineStatus(userId: currentUserId, isOnline: false)
+        }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            multiplayerService.updateOnlineStatus(userId: currentUserId, isOnline: false)
+        }
+        gameInvitationListener?.remove()
     }
     
     private func setupUI() {
@@ -234,6 +265,7 @@ class ProfileViewController: UIViewController {
         contentView.addSubview(achievementsLabel)
         contentView.addSubview(achievementsCollectionView)
         contentView.addSubview(loadingIndicator)
+        contentView.addSubview(onlineButton)
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -275,7 +307,12 @@ class ProfileViewController: UIViewController {
             achievementsCollectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+            loadingIndicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            
+            onlineButton.topAnchor.constraint(equalTo: friendsButton.bottomAnchor, constant: 16),
+            onlineButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            onlineButton.widthAnchor.constraint(equalToConstant: 200),
+            onlineButton.heightAnchor.constraint(equalToConstant: 40)
         ])
         
         // Profil fotoğrafı için placeholder
@@ -285,6 +322,8 @@ class ProfileViewController: UIViewController {
         
         // Add action to friends button
         friendsButton.addTarget(self, action: #selector(friendsButtonTapped), for: .touchUpInside)
+        
+        onlineButton.addTarget(self, action: #selector(onlineButtonTapped), for: .touchUpInside)
     }
     
     private func setupCollectionView() {
@@ -378,6 +417,83 @@ class ProfileViewController: UIViewController {
         }
         
         present(nav, animated: true)
+    }
+    
+    @objc private func onlineButtonTapped() {
+        let onlineVC = OnlineUsersViewController()
+        navigationController?.pushViewController(onlineVC, animated: true)
+    }
+    
+    private func setupGameInvitationListener() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        let gamesRef = db.collection("multiplayer_games")
+        gameInvitationListener = gamesRef
+            .whereField("invited_id", isEqualTo: currentUserId)
+            .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+            .addSnapshotListener { [weak self] snapshot, error in
+                if let error = error {
+                    print("Error listening for game invitations: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else { return }
+                
+                for document in documents {
+                    if let game = MultiplayerGame.from(document) {
+                        self?.handleGameInvitation(game)
+                    }
+                }
+            }
+    }
+
+    private func handleGameInvitation(_ game: MultiplayerGame) {
+        // Fetch creator's name
+        db.collection("users").document(game.creatorId).getDocument { [weak self] document, error in
+            guard let self = self,
+                  let creatorData = document?.data(),
+                  let creatorName = creatorData["name"] as? String else { return }
+            
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "Game Invitation",
+                    message: "\(creatorName) has invited you to a quiz game!",
+                    preferredStyle: .alert
+                )
+                
+                alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+                    self?.acceptGameInvitation(game)
+                })
+                
+                alert.addAction(UIAlertAction(title: "Decline", style: .cancel) { [weak self] _ in
+                    self?.declineGameInvitation(game)
+                })
+                
+                self.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func acceptGameInvitation(_ game: MultiplayerGame) {
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: true) { [weak self] result in
+            switch result {
+            case .success(let game):
+                DispatchQueue.main.async {
+                    let waitingVC = GameWaitingViewController(game: game)
+                    self?.navigationController?.pushViewController(waitingVC, animated: true)
+                }
+            case .failure(let error):
+                print("Error accepting game invitation: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func declineGameInvitation(_ game: MultiplayerGame) {
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: false) { result in
+            if case .failure(let error) = result {
+                print("Error declining game invitation: \(error.localizedDescription)")
+            }
+        }
     }
 }
 

@@ -255,7 +255,9 @@ class FriendProfileViewController: UIViewController {
                 quizzesPlayed: quizzesPlayed,
                 quizzesWon: quizzesWon,
                 language: data["language"] as? String ?? "tr",
-                categoryStats: [:]
+                categoryStats: [:],
+                isOnline: data["is_online"] as? Bool ?? false,
+                lastOnline: (data["last_online"] as? Timestamp)?.dateValue() ?? Date()
             )
             
             DispatchQueue.main.async {
