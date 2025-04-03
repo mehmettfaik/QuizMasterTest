@@ -23,8 +23,9 @@ class GameSetupViewController: UIViewController {
         return button
     }()
     
-    private let categories = ["General Knowledge", "Science", "History", "Geography", "Sports"]
+    private var categories: [String] = []
     private let difficulties = ["Easy", "Medium", "Hard"]
+    private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
     init(game: MultiplayerGame) {
         self.game = game
@@ -39,6 +40,7 @@ class GameSetupViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupListeners()
+        fetchCategories()
     }
     
     private func setupUI() {
@@ -58,7 +60,10 @@ class GameSetupViewController: UIViewController {
         difficultyPicker.delegate = self
         difficultyPicker.dataSource = self
         
-        [categoryLabel, categoryPicker, difficultyLabel, difficultyPicker, startButton].forEach {
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        loadingIndicator.hidesWhenStopped = true
+        
+        [categoryLabel, categoryPicker, difficultyLabel, difficultyPicker, startButton, loadingIndicator].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -83,7 +88,10 @@ class GameSetupViewController: UIViewController {
             startButton.topAnchor.constraint(equalTo: difficultyPicker.bottomAnchor, constant: 40),
             startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             startButton.widthAnchor.constraint(equalToConstant: 200),
-            startButton.heightAnchor.constraint(equalToConstant: 44)
+            startButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
         
         startButton.addTarget(self, action: #selector(startButtonTapped), for: .touchUpInside)
@@ -106,20 +114,51 @@ class GameSetupViewController: UIViewController {
         }
     }
     
+    private func fetchCategories() {
+        loadingIndicator.startAnimating()
+        startButton.isEnabled = false
+        
+        multiplayerService.getQuizCategories { [weak self] result in
+            DispatchQueue.main.async {
+                self?.loadingIndicator.stopAnimating()
+                self?.startButton.isEnabled = true
+                
+                switch result {
+                case .success(let categories):
+                    self?.categories = categories
+                    self?.categoryPicker.reloadAllComponents()
+                case .failure(let error):
+                    self?.showAlert(title: "Error", message: "Failed to load categories: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
     @objc private func startButtonTapped() {
+        guard !categories.isEmpty else {
+            showAlert(title: "Error", message: "Please wait for categories to load")
+            return
+        }
+        
         let selectedCategory = categories[categoryPicker.selectedRow(inComponent: 0)]
         let selectedDifficulty = difficulties[difficultyPicker.selectedRow(inComponent: 0)].lowercased()
+        
+        startButton.isEnabled = false
+        loadingIndicator.startAnimating()
         
         multiplayerService.setupGame(
             gameId: game.id,
             category: selectedCategory,
             difficulty: selectedDifficulty
         ) { [weak self] result in
-            switch result {
-            case .success(let game):
-                print("Game setup successful: \(game.id)")
-            case .failure(let error):
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                self?.startButton.isEnabled = true
+                self?.loadingIndicator.stopAnimating()
+                
+                switch result {
+                case .success(let game):
+                    print("Game setup successful: \(game.id)")
+                case .failure(let error):
                     self?.showAlert(title: "Error", message: error.localizedDescription)
                 }
             }

@@ -103,9 +103,31 @@ class MultiplayerGameService {
     
     // MARK: - Game Setup and Management
     
+    func getQuizCategories(completion: @escaping (Result<[String], Error>) -> Void) {
+        db.collection("quizzes")
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                let categories = Array(Set(documents.compactMap { document in
+                    document.data()["category"] as? String
+                })).sorted()
+                
+                completion(.success(categories))
+            }
+    }
+    
     func setupGame(gameId: String, category: String, difficulty: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
         // First, fetch questions for the selected category and difficulty
-        db.collection("animals")
+        db.collection("quizzes")
+            .whereField("category", isEqualTo: category)
             .whereField("difficulty", isEqualTo: difficulty)
             .limit(to: 5)  // Get 5 questions for the game
             .getDocuments { [weak self] snapshot, error in
@@ -151,7 +173,7 @@ class MultiplayerGameService {
     }
     
     func getQuestion(questionId: String, completion: @escaping (Result<Question, Error>) -> Void) {
-        db.collection("animals").document(questionId).getDocument { snapshot, error in
+        db.collection("quizzes").document(questionId).getDocument { snapshot, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -169,8 +191,8 @@ class MultiplayerGameService {
                 text: questionText,
                 options: options,
                 correctAnswer: correctAnswer,
-                questionImage: nil,
-                optionImages: nil
+                questionImage: data["question_image"] as? String,
+                optionImages: data["option_images"] as? [String]
             )
             
             completion(.success(question))
