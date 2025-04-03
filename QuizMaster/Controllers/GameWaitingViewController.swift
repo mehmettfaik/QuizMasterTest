@@ -93,10 +93,10 @@ class GameWaitingViewController: UIViewController {
     private func handleGameInvitation(_ game: MultiplayerGame) {
         isShowingInvitation = true
         
-        // Show invitation alert
+        // Show invitation alert with creator's name
         let alert = UIAlertController(
             title: "Game Invitation",
-            message: "You have been invited to play a quiz game!",
+            message: "\(game.creatorName) has invited you to play a quiz game!",
             preferredStyle: .alert
         )
         
@@ -121,13 +121,13 @@ class GameWaitingViewController: UIViewController {
     }
     
     private func acceptInvitation(_ game: MultiplayerGame) {
-        statusLabel.text = "Accepting invitation..."
+        statusLabel.text = "Accepting invitation from \(game.creatorName)..."
         
         multiplayerService.respondToGameInvitation(gameId: game.id, accept: true) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let updatedGame):
-                    self?.statusLabel.text = "Waiting for game to start..."
+                    self?.statusLabel.text = "Waiting for \(game.creatorName) to start the game..."
                     self?.listenForGameStart(updatedGame)
                 case .failure(let error):
                     self?.showAlert(title: "Error", message: error.localizedDescription)
@@ -137,6 +137,8 @@ class GameWaitingViewController: UIViewController {
     }
     
     private func declineInvitation(_ game: MultiplayerGame) {
+        statusLabel.text = "Declining invitation..."
+        
         multiplayerService.respondToGameInvitation(gameId: game.id, accept: false) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -150,6 +152,8 @@ class GameWaitingViewController: UIViewController {
     }
     
     private func listenForGameStart(_ game: MultiplayerGame) {
+        gameListener?.remove() // Remove any existing listener
+        
         gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -157,6 +161,9 @@ class GameWaitingViewController: UIViewController {
                     if updatedGame.status == .inProgress {
                         let gameVC = MultiplayerGameViewController(game: updatedGame)
                         self?.navigationController?.pushViewController(gameVC, animated: true)
+                    } else if updatedGame.status == .rejected {
+                        self?.showAlert(title: "Invitation Declined", message: "\(updatedGame.invitedName) declined the game invitation.")
+                        self?.navigationController?.popViewController(animated: true)
                     }
                 case .failure(let error):
                     self?.showAlert(title: "Error", message: error.localizedDescription)

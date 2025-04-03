@@ -114,12 +114,12 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func loadQuestion(at index: Int) {
-        guard index < game.questions.count else {
+        guard let questions = game.questions, index < questions.count else {
             endGame()
             return
         }
         
-        let questionId = game.questions[index]
+        let questionId = questions[index]
         multiplayerService.getQuestion(questionId: questionId) { [weak self] result in
             switch result {
             case .success(let question):

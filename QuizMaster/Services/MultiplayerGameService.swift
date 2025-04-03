@@ -43,6 +43,7 @@ class MultiplayerGameService {
         return db.collection("multiplayer_games")
             .whereField("invited_id", isEqualTo: currentUserId)
             .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+            .order(by: "created_at", descending: true)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -53,7 +54,7 @@ class MultiplayerGameService {
                 
                 // Handle document changes
                 snapshot.documentChanges.forEach { change in
-                    if change.type == .added {
+                    if change.type == .added || change.type == .modified {
                         if let game = MultiplayerGame.from(change.document) {
                             completion(.success(game))
                         }
@@ -91,35 +92,52 @@ class MultiplayerGameService {
     }
     
     private func createNewGameInvitation(currentUserId: String, invitedUserId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        let gameData: [String: Any] = [
-            "creator_id": currentUserId,
-            "invited_id": invitedUserId,
-            "status": GameStatus.pending.rawValue,
-            "created_at": Timestamp(date: Date()),
-            "current_question_index": 0,
-            "player_scores": [
-                currentUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0],
-                invitedUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
-            ]
-        ]
-        
+        // Get user names for better identification
+        let batch = db.batch()
         let gameRef = db.collection("multiplayer_games").document()
-        gameRef.setData(gameData) { error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
+        
+        // Get creator's name
+        db.collection("users").document(currentUserId).getDocument { [weak self] creatorDoc, error in
+            guard let self = self else { return }
             
-            gameRef.getDocument { document, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
+            let creatorName = creatorDoc?.data()?["username"] as? String ?? "Unknown"
+            
+            // Get invited user's name
+            self.db.collection("users").document(invitedUserId).getDocument { invitedDoc, error in
+                let invitedName = invitedDoc?.data()?["username"] as? String ?? "Unknown"
                 
-                if let game = document.flatMap(MultiplayerGame.from) {
-                    completion(.success(game))
-                } else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create game"])))
+                let gameData: [String: Any] = [
+                    "creator_id": currentUserId,
+                    "creator_name": creatorName,
+                    "invited_id": invitedUserId,
+                    "invited_name": invitedName,
+                    "status": GameStatus.pending.rawValue,
+                    "created_at": Timestamp(date: Date()),
+                    "current_question_index": 0,
+                    "player_scores": [
+                        currentUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0],
+                        invitedUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
+                    ]
+                ]
+                
+                gameRef.setData(gameData) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    gameRef.getDocument { document, error in
+                        if let error = error {
+                            completion(.failure(error))
+                            return
+                        }
+                        
+                        if let game = document.flatMap(MultiplayerGame.from) {
+                            completion(.success(game))
+                        } else {
+                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create game"])))
+                        }
+                    }
                 }
             }
         }
