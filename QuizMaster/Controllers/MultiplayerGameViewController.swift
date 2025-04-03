@@ -40,7 +40,6 @@ class MultiplayerGameViewController: UIViewController {
     private var timer: Timer?
     private var timeLeft: Int = 5 // 5 seconds per question
     private var currentQuestion: Question?
-    private var quiz: Quiz?
     
     init(game: MultiplayerGame) {
         self.game = game
@@ -55,7 +54,7 @@ class MultiplayerGameViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupGameListener()
-        createQuiz()
+        loadQuestion(at: game.currentQuestionIndex)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -93,30 +92,6 @@ class MultiplayerGameViewController: UIViewController {
         updateScoreLabel()
     }
     
-    private func createQuiz() {
-        // Create dummy questions for testing
-        let questions = game.questions.enumerated().map { index, _ in
-            Question(
-                text: "Sample Question \(index + 1)",
-                options: ["Option A", "Option B", "Option C", "Option D"],
-                correctAnswer: "Option A",
-                questionImage: nil,
-                optionImages: nil
-            )
-        }
-        
-        quiz = Quiz(
-            id: game.id,
-            category: QuizCategory(rawValue: game.category) ?? .generalCulture,
-            difficulty: QuizDifficulty(rawValue: game.difficulty.lowercased().capitalized) ?? .medium,
-            questions: questions,
-            timePerQuestion: 5,
-            pointsPerQuestion: 10
-        )
-        
-        loadQuestion(at: game.currentQuestionIndex)
-    }
-    
     private func setupGameListener() {
         gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
             switch result {
@@ -139,12 +114,20 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func loadQuestion(at index: Int) {
-        guard let quiz = quiz, index < quiz.questions.count else {
+        guard index < game.questions.count else {
             endGame()
             return
         }
         
-        displayQuestion(quiz.questions[index])
+        let questionId = game.questions[index]
+        multiplayerService.getQuestion(questionId: questionId) { [weak self] result in
+            switch result {
+            case .success(let question):
+                self?.displayQuestion(question)
+            case .failure(let error):
+                print("Error loading question: \(error.localizedDescription)")
+            }
+        }
     }
     
     private func displayQuestion(_ question: Question) {
@@ -170,7 +153,7 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func startTimer() {
-        timeLeft = quiz?.timePerQuestion ?? 5
+        timeLeft = 5
         updateTimerLabel()
         
         timer?.invalidate()

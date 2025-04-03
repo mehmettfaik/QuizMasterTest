@@ -103,32 +103,77 @@ class MultiplayerGameService {
     
     // MARK: - Game Setup and Management
     
-    func setupGame(gameId: String, category: String, difficulty: String, questions: [String], completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        let gameRef = db.collection("multiplayer_games").document(gameId)
-        
-        gameRef.updateData([
-            "category": category,
-            "difficulty": difficulty,
-            "questions": questions,
-            "status": GameStatus.inProgress.rawValue
-        ]) { error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            gameRef.getDocument { document, error in
+    func setupGame(gameId: String, category: String, difficulty: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
+        // First, fetch questions for the selected category and difficulty
+        db.collection("animals")
+            .whereField("difficulty", isEqualTo: difficulty)
+            .limit(to: 5)  // Get 5 questions for the game
+            .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                if let game = document.flatMap(MultiplayerGame.from) {
-                    completion(.success(game))
-                } else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to setup game"])))
+                guard let documents = snapshot?.documents else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No questions found"])))
+                    return
+                }
+                
+                let questionIds = documents.map { $0.documentID }
+                
+                // Update game with questions
+                let gameRef = self?.db.collection("multiplayer_games").document(gameId)
+                gameRef?.updateData([
+                    "category": category,
+                    "difficulty": difficulty,
+                    "questions": questionIds,
+                    "status": GameStatus.inProgress.rawValue
+                ]) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    gameRef?.getDocument { document, error in
+                        if let error = error {
+                            completion(.failure(error))
+                            return
+                        }
+                        
+                        if let game = document.flatMap(MultiplayerGame.from) {
+                            completion(.success(game))
+                        } else {
+                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to setup game"])))
+                        }
+                    }
                 }
             }
+    }
+    
+    func getQuestion(questionId: String, completion: @escaping (Result<Question, Error>) -> Void) {
+        db.collection("animals").document(questionId).getDocument { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = snapshot?.data(),
+                  let questionText = data["question"] as? String,
+                  let correctAnswer = data["correct_answer"] as? String,
+                  let options = data["options"] as? [String] else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid question data"])))
+                return
+            }
+            
+            let question = Question(
+                text: questionText,
+                options: options,
+                correctAnswer: correctAnswer,
+                questionImage: nil,
+                optionImages: nil
+            )
+            
+            completion(.success(question))
         }
     }
     

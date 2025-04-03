@@ -110,14 +110,10 @@ class GameSetupViewController: UIViewController {
         let selectedCategory = categories[categoryPicker.selectedRow(inComponent: 0)]
         let selectedDifficulty = difficulties[difficultyPicker.selectedRow(inComponent: 0)].lowercased()
         
-        // TODO: Fetch questions from your question service
-        let dummyQuestions = ["1", "2", "3", "4", "5"] // Replace with actual question IDs
-        
         multiplayerService.setupGame(
             gameId: game.id,
             category: selectedCategory,
-            difficulty: selectedDifficulty,
-            questions: dummyQuestions
+            difficulty: selectedDifficulty
         ) { [weak self] result in
             switch result {
             case .success(let game):
