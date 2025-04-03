@@ -212,7 +212,7 @@ class ProfileViewController: UIViewController {
     }()
     
     private let multiplayerService = MultiplayerGameService.shared
-    private var gameInvitationListener: ListenerRegistration?
+    private var invitationListener: ListenerRegistration?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -223,7 +223,7 @@ class ProfileViewController: UIViewController {
         setupCollectionView()
         setupBindings()
         setupNavigationBar()
-        setupGameInvitationListener()
+        setupInvitationListener()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -239,7 +239,7 @@ class ProfileViewController: UIViewController {
         if let currentUserId = Auth.auth().currentUser?.uid {
             multiplayerService.updateOnlineStatus(userId: currentUserId, isOnline: false)
         }
-        gameInvitationListener?.remove()
+        invitationListener?.remove()
     }
     
     private func setupUI() {
@@ -424,54 +424,40 @@ class ProfileViewController: UIViewController {
         navigationController?.pushViewController(onlineVC, animated: true)
     }
     
-    private func setupGameInvitationListener() {
+    private func setupInvitationListener() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
-        let gamesRef = db.collection("multiplayer_games")
-        gameInvitationListener = gamesRef
-            .whereField("invited_id", isEqualTo: currentUserId)
-            .whereField("status", isEqualTo: GameStatus.pending.rawValue)
-            .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
-                    print("Error listening for game invitations: \(error.localizedDescription)")
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else { return }
-                
-                for document in documents {
-                    if let game = MultiplayerGame.from(document) {
-                        self?.handleGameInvitation(game)
-                    }
-                }
-            }
-    }
-
-    private func handleGameInvitation(_ game: MultiplayerGame) {
-        // Fetch creator's name
-        db.collection("users").document(game.creatorId).getDocument { [weak self] document, error in
-            guard let self = self,
-                  let creatorData = document?.data(),
-                  let creatorName = creatorData["name"] as? String else { return }
-            
+        invitationListener = multiplayerService.listenForGameInvitations { [weak self] result in
             DispatchQueue.main.async {
-                let alert = UIAlertController(
-                    title: "Game Invitation",
-                    message: "\(creatorName) has invited you to a quiz game!",
-                    preferredStyle: .alert
-                )
-                
-                alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
-                    self?.acceptGameInvitation(game)
-                })
-                
-                alert.addAction(UIAlertAction(title: "Decline", style: .cancel) { [weak self] _ in
-                    self?.declineGameInvitation(game)
-                })
-                
-                self.present(alert, animated: true)
+                switch result {
+                case .success(let game):
+                    self?.handleGameInvitation(game)
+                case .failure(let error):
+                    print("Error listening for game invitations: \(error.localizedDescription)")
+                }
             }
         }
+    }
+    
+    private func handleGameInvitation(_ game: MultiplayerGame) {
+        // Prevent showing duplicate invitations
+        guard presentedViewController == nil else { return }
+        
+        let alert = UIAlertController(
+            title: "Game Invitation",
+            message: "\(game.creatorName) has invited you to play a quiz game!",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+            self?.acceptGameInvitation(game)
+        })
+        
+        alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { [weak self] _ in
+            self?.declineGameInvitation(game)
+        })
+        
+        present(alert, animated: true)
     }
 
     private func acceptGameInvitation(_ game: MultiplayerGame) {

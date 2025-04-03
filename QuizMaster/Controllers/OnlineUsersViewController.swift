@@ -1,5 +1,6 @@
 import UIKit
 import FirebaseAuth
+import FirebaseFirestore
 
 class OnlineUsersViewController: UIViewController {
     private let tableView: UITableView = {
@@ -10,11 +11,13 @@ class OnlineUsersViewController: UIViewController {
     
     private var onlineUsers: [User] = []
     private let multiplayerService = MultiplayerGameService.shared
+    private var onlineUsersListener: ListenerRegistration?
+    private var invitationListener: ListenerRegistration?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        fetchOnlineUsers()
+        setupListeners()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -26,6 +29,8 @@ class OnlineUsersViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        onlineUsersListener?.remove()
+        invitationListener?.remove()
         if let currentUserId = Auth.auth().currentUser?.uid {
             multiplayerService.updateOnlineStatus(userId: currentUserId, isOnline: false)
         }
@@ -48,31 +53,74 @@ class OnlineUsersViewController: UIViewController {
         ])
     }
     
-    private func fetchOnlineUsers() {
-        multiplayerService.getOnlineUsers { [weak self] users in
-            guard let self = self else { return }
-            
-            // Filter out current user
-            self.onlineUsers = users.filter { $0.id != Auth.auth().currentUser?.uid }
-            
+    private func setupListeners() {
+        setupOnlineUsersListener()
+        setupInvitationListener()
+    }
+    
+    private func setupOnlineUsersListener() {
+        onlineUsersListener = multiplayerService.getOnlineUsers { [weak self] users in
             DispatchQueue.main.async {
-                self.tableView.reloadData()
+                self?.onlineUsers = users.filter { $0.id != Auth.auth().currentUser?.uid }
+                self?.tableView.reloadData()
             }
         }
     }
     
-    private func sendGameInvitation(to user: User) {
-        multiplayerService.sendGameInvitation(to: user.id) { [weak self] result in
-            switch result {
-            case .success(let game):
-                DispatchQueue.main.async {
-                    let gameSetupVC = GameSetupViewController(game: game)
-                    self?.navigationController?.pushViewController(gameSetupVC, animated: true)
+    private func setupInvitationListener() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        invitationListener = multiplayerService.listenForGameInvitations { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let game):
+                    self?.handleGameInvitation(game)
+                case .failure(let error):
+                    print("Error listening for game invitations: \(error.localizedDescription)")
                 }
-            case .failure(let error):
-                DispatchQueue.main.async {
+            }
+        }
+    }
+    
+    private func handleGameInvitation(_ game: MultiplayerGame) {
+        // Prevent showing duplicate invitations
+        guard presentedViewController == nil else { return }
+        
+        let alert = UIAlertController(
+            title: "Game Invitation",
+            message: "\(game.creatorName) has invited you to play a quiz game!",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+            self?.acceptGameInvitation(game)
+        })
+        
+        alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { [weak self] _ in
+            self?.declineGameInvitation(game)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func acceptGameInvitation(_ game: MultiplayerGame) {
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: true) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let game):
+                    let waitingVC = GameWaitingViewController(game: game)
+                    self?.navigationController?.pushViewController(waitingVC, animated: true)
+                case .failure(let error):
                     self?.showAlert(title: "Error", message: error.localizedDescription)
                 }
+            }
+        }
+    }
+    
+    private func declineGameInvitation(_ game: MultiplayerGame) {
+        multiplayerService.respondToGameInvitation(gameId: game.id, accept: false) { result in
+            if case .failure(let error) = result {
+                print("Error declining game invitation: \(error.localizedDescription)")
             }
         }
     }
@@ -116,5 +164,21 @@ extension OnlineUsersViewController: UITableViewDelegate, UITableViewDataSource 
         alert.addAction(UIAlertAction(title: "No", style: .cancel))
         
         present(alert, animated: true)
+    }
+    
+    private func sendGameInvitation(to user: User) {
+        multiplayerService.sendGameInvitation(to: user.id) { [weak self] result in
+            switch result {
+            case .success(let game):
+                DispatchQueue.main.async {
+                    let gameSetupVC = GameSetupViewController(game: game)
+                    self?.navigationController?.pushViewController(gameSetupVC, animated: true)
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self?.showAlert(title: "Error", message: error.localizedDescription)
+                }
+            }
+        }
     }
 } 
