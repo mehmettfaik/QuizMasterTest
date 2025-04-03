@@ -40,26 +40,48 @@ class MultiplayerGameService {
             return db.collection("dummy").addSnapshotListener { _, _ in }
         }
         
-        return db.collection("multiplayer_games")
+        // First, try with ordering
+        let query = db.collection("multiplayer_games")
             .whereField("invited_id", isEqualTo: currentUserId)
             .whereField("status", isEqualTo: GameStatus.pending.rawValue)
             .order(by: "created_at", descending: true)
-            .addSnapshotListener { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let snapshot = snapshot else { return }
-                
-                snapshot.documentChanges.forEach { change in
-                    if change.type == .added || change.type == .modified {
-                        if let game = MultiplayerGame.from(change.document) {
-                            completion(.success(game))
+        
+        return query.addSnapshotListener { snapshot, error in
+            if let error = error {
+                // If we get an index error, fall back to basic query
+                if (error.localizedDescription.contains("requires an index")) {
+                    print("Warning: Falling back to basic query without ordering")
+                    // Set up basic query without ordering
+                    self.db.collection("multiplayer_games")
+                        .whereField("invited_id", isEqualTo: currentUserId)
+                        .whereField("status", isEqualTo: GameStatus.pending.rawValue)
+                        .getDocuments { snapshot, error in
+                            if let error = error {
+                                completion(.failure(error))
+                                return
+                            }
+                            
+                            if let document = snapshot?.documents.first,
+                               let game = MultiplayerGame.from(document) {
+                                completion(.success(game))
+                            }
                         }
+                } else {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let snapshot = snapshot else { return }
+            
+            snapshot.documentChanges.forEach { change in
+                if change.type == .added || change.type == .modified {
+                    if let game = MultiplayerGame.from(change.document) {
+                        completion(.success(game))
                     }
                 }
             }
+        }
     }
     
     func sendGameInvitation(to userId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
