@@ -49,13 +49,16 @@ class MultiplayerGameService {
                     return
                 }
                 
-                guard let documents = snapshot?.documents,
-                      let latestInvite = documents.first,
-                      let game = MultiplayerGame.from(latestInvite) else {
-                    return
-                }
+                guard let snapshot = snapshot else { return }
                 
-                completion(.success(game))
+                // Handle document changes
+                snapshot.documentChanges.forEach { change in
+                    if change.type == .added {
+                        if let game = MultiplayerGame.from(change.document) {
+                            completion(.success(game))
+                        }
+                    }
+                }
             }
     }
     

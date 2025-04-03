@@ -72,10 +72,15 @@ class GameWaitingViewController: UIViewController {
     private func setupListeners() {
         // Listen for incoming game invitations
         invitationListener = multiplayerService.listenForGameInvitations { [weak self] result in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
                 switch result {
                 case .success(let game):
-                    self?.handleGameInvitation(game)
+                    // Only show invitation if we haven't handled it yet
+                    if !self.isShowingInvitation {
+                        self.handleGameInvitation(game)
+                    }
                 case .failure(let error):
                     print("Error listening for game invitations: \(error.localizedDescription)")
                 }
@@ -83,7 +88,11 @@ class GameWaitingViewController: UIViewController {
         }
     }
     
+    private var isShowingInvitation = false
+    
     private func handleGameInvitation(_ game: MultiplayerGame) {
+        isShowingInvitation = true
+        
         // Show invitation alert
         let alert = UIAlertController(
             title: "Game Invitation",
@@ -92,14 +101,23 @@ class GameWaitingViewController: UIViewController {
         )
         
         alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+            self?.isShowingInvitation = false
             self?.acceptInvitation(game)
         })
         
         alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { [weak self] _ in
+            self?.isShowingInvitation = false
             self?.declineInvitation(game)
         })
         
-        present(alert, animated: true)
+        // If alert is already being presented, dismiss it first
+        if let presentedVC = presentedViewController {
+            presentedVC.dismiss(animated: true) { [weak self] in
+                self?.present(alert, animated: true)
+            }
+        } else {
+            present(alert, animated: true)
+        }
     }
     
     private func acceptInvitation(_ game: MultiplayerGame) {
