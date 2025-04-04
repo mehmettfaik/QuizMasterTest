@@ -440,6 +440,73 @@ class MultiplayerGameService {
         }
     }
     
+    func updateGameScore(gameId: String, points: Int, completion: @escaping (Error?) -> Void) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"]))
+            return
+        }
+        
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        gameRef.getDocument { [weak self] document, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let game = document.flatMap(MultiplayerGame.from) else {
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"]))
+                return
+            }
+            
+            var playerScore = game.playerScores[userId] ?? PlayerScore(userId: userId, score: 0, correctAnswers: 0, wrongAnswers: 0)
+            playerScore.score += points
+            playerScore.correctAnswers += 1
+            
+            let updateData: [String: Any] = [
+                "player_scores.\(userId)": [
+                    "score": playerScore.score,
+                    "correct_answers": playerScore.correctAnswers,
+                    "wrong_answers": playerScore.wrongAnswers
+                ]
+            ]
+            
+            gameRef.updateData(updateData) { error in
+                completion(error)
+            }
+        }
+    }
+    
+    func moveToNextQuestion(gameId: String, completion: @escaping (Error?) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        gameRef.getDocument { document, error in
+            if let error = error {
+                completion(error)
+                return
+            }
+            
+            guard let game = document.flatMap(MultiplayerGame.from) else {
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"]))
+                return
+            }
+            
+            let nextIndex = game.currentQuestionIndex + 1
+            var updateData: [String: Any] = ["current_question_index": nextIndex]
+            
+            // If this was the last question, update game status to completed
+            if let questions = game.questions, nextIndex >= questions.count {
+                updateData["status"] = GameStatus.completed.rawValue
+            }
+            
+            gameRef.updateData(updateData) { error in
+                completion(error)
+            }
+        }
+    }
+    
     func listenForGameUpdates(gameId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) -> ListenerRegistration {
         return db.collection("multiplayer_games").document(gameId)
             .addSnapshotListener { documentSnapshot, error in
