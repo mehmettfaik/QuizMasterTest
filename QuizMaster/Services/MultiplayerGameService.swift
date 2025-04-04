@@ -497,27 +497,36 @@ class MultiplayerGameService {
     func moveToNextQuestion(gameId: String, completion: @escaping (Error?) -> Void) {
         let gameRef = db.collection("multiplayer_games").document(gameId)
         
-        gameRef.getDocument { document, error in
+        gameRef.getDocument { [weak self] (document, error) in
             if let error = error {
                 completion(error)
                 return
             }
             
-            guard let game = document.flatMap(MultiplayerGame.from) else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"]))
+            guard let document = document,
+                  document.exists,
+                  let data = document.data(),
+                  let currentIndex = data["current_question_index"] as? Int,
+                  let questions = data["questions"] as? [String] else {
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid game data"]))
                 return
             }
             
-            let nextIndex = game.currentQuestionIndex + 1
-            var updateData: [String: Any] = ["current_question_index": nextIndex]
-            
-            // If this was the last question, update game status to completed
-            if let questions = game.questions, nextIndex >= questions.count {
-                updateData["status"] = GameStatus.completed.rawValue
-            }
-            
-            gameRef.updateData(updateData) { error in
-                completion(error)
+            // Check if we can move to next question
+            if currentIndex < questions.count - 1 {
+                gameRef.updateData([
+                    "current_question_index": currentIndex + 1,
+                    "question_start_time": FieldValue.serverTimestamp()
+                ]) { error in
+                    completion(error)
+                }
+            } else {
+                // End the game
+                gameRef.updateData([
+                    "status": GameStatus.completed.rawValue
+                ]) { error in
+                    completion(error)
+                }
             }
         }
     }

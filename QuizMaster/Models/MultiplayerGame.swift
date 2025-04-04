@@ -31,15 +31,15 @@ struct MultiplayerGame: Codable {
     let invitedId: String
     let invitedName: String
     let status: GameStatus
-    let currentQuestionIndex: Int
-    let playerScores: [String: PlayerScore]
-    let questions: [String]?
-    let category: String?
+    var currentQuestionIndex: Int
+    var playerScores: [String: PlayerScore]
+    let questions: [String]
+    let category: String
     let difficulty: String?
     let createdAt: Date
     let responseTime: Date?
     let startTime: Date?
-    let questionStartTime: Timestamp?
+    var questionStartTime: Timestamp?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -59,44 +59,61 @@ struct MultiplayerGame: Codable {
         case questionStartTime = "question_start_time"
     }
     
+    init(id: String, creatorId: String, creatorName: String, invitedId: String, invitedName: String, status: GameStatus, currentQuestionIndex: Int, playerScores: [String: PlayerScore], questions: [String], category: String, difficulty: String?, createdAt: Date, responseTime: Date?, startTime: Date?, questionStartTime: Timestamp?) {
+        self.id = id
+        self.creatorId = creatorId
+        self.creatorName = creatorName
+        self.invitedId = invitedId
+        self.invitedName = invitedName
+        self.status = status
+        self.currentQuestionIndex = currentQuestionIndex
+        self.playerScores = playerScores
+        self.questions = questions
+        self.category = category
+        self.difficulty = difficulty
+        self.createdAt = createdAt
+        self.responseTime = responseTime
+        self.startTime = startTime
+        self.questionStartTime = questionStartTime
+    }
+    
     static func from(_ document: DocumentSnapshot) -> MultiplayerGame? {
         guard let data = document.data(),
+              let id = data["id"] as? String,
               let creatorId = data["creator_id"] as? String,
               let invitedId = data["invited_id"] as? String,
-              let statusRaw = data["status"] as? String,
-              let status = GameStatus(rawValue: statusRaw),
               let currentQuestionIndex = data["current_question_index"] as? Int,
-              let createdAt = (data["created_at"] as? Timestamp)?.dateValue() else {
+              let questions = data["questions"] as? [String],
+              let category = data["category"] as? String,
+              let statusRaw = data["status"] as? String,
+              let status = GameStatus(rawValue: statusRaw) else {
             return nil
         }
         
         let creatorName = data["creator_name"] as? String ?? "Unknown"
         let invitedName = data["invited_name"] as? String ?? "Unknown"
-        let questions = data["questions"] as? [String]
-        let category = data["category"] as? String
         let difficulty = data["difficulty"] as? String
         let responseTime = (data["response_time"] as? Timestamp)?.dateValue()
         let startTime = (data["start_time"] as? Timestamp)?.dateValue()
         let questionStartTime = data["question_start_time"] as? Timestamp
         
         var playerScores: [String: PlayerScore] = [:]
-        if let scores = data["player_scores"] as? [String: [String: Any]] {
-            for (userId, scoreData) in scores {
-                if let score = scoreData["score"] as? Int,
-                   let correctAnswers = scoreData["correct_answers"] as? Int,
-                   let wrongAnswers = scoreData["wrong_answers"] as? Int {
+        if let scoresData = data["player_scores"] as? [String: [String: Any]] {
+            for (userId, scoreData) in scoresData {
+                if let score = scoreData["score"] as? Int {
+                    let lastAnswerTime = scoreData["last_answer_time"] as? Timestamp
                     playerScores[userId] = PlayerScore(
                         userId: userId,
                         score: score,
-                        correctAnswers: correctAnswers,
-                        wrongAnswers: wrongAnswers
+                        correctAnswers: 0,
+                        wrongAnswers: 0
                     )
                 }
             }
         }
         
         return MultiplayerGame(
-            id: document.documentID,
+            id: id,
             creatorId: creatorId,
             creatorName: creatorName,
             invitedId: invitedId,
@@ -107,7 +124,7 @@ struct MultiplayerGame: Codable {
             questions: questions,
             category: category,
             difficulty: difficulty,
-            createdAt: createdAt,
+            createdAt: Date(),
             responseTime: responseTime,
             startTime: startTime,
             questionStartTime: questionStartTime

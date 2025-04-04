@@ -3,7 +3,7 @@ import FirebaseAuth
 import FirebaseFirestore
 
 class MultiplayerGameViewController: UIViewController {
-    private let game: MultiplayerGame
+    private var game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
     private var gameListener: ListenerRegistration?
     private var questionStartTime: Date?
@@ -162,11 +162,15 @@ class MultiplayerGameViewController: UIViewController {
             switch result {
             case .success(let updatedGame):
                 DispatchQueue.main.async {
+                    // Update game reference with new values
+                    self.game = updatedGame
+                    
                     // Update scores immediately
                     self.updateScoreLabel()
                     
                     // Handle question changes
                     if updatedGame.currentQuestionIndex != self.game.currentQuestionIndex {
+                        print("Question index changed from \(self.game.currentQuestionIndex) to \(updatedGame.currentQuestionIndex)")
                         self.isWaitingForNextQuestion = false
                         self.loadQuestion(at: updatedGame.currentQuestionIndex)
                     }
@@ -199,22 +203,25 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func loadQuestion(at index: Int) {
-        guard let questions = game.questions, index < questions.count else {
+        print("Loading question at index: \(index)")
+        guard index < game.questions.count else {
+            print("End game condition met: index=\(index), questions count=\(game.questions.count)")
             endGame()
             return
         }
         
-        // Reset UI state
-        DispatchQueue.main.async {
-            self.resetUIState()
-        }
+        // Reset UI state before loading new question
+        resetUIState()
         
-        let questionId = questions[index]
+        let questionId = game.questions[index]
+        print("Loading question with ID: \(questionId)")
+        
         multiplayerService.getQuestion(questionId: questionId) { [weak self] result in
             guard let self = self else { return }
             
             switch result {
             case .success(let question):
+                print("Successfully loaded question: \(question.text)")
                 DispatchQueue.main.async {
                     self.displayQuestion(question)
                     
@@ -434,15 +441,21 @@ class MultiplayerGameViewController: UIViewController {
                 }
             }
             
-            // Only the creator moves to the next question
+            // Only the creator moves to the next question after a delay
             if self.game.creatorId == Auth.auth().currentUser?.uid {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                     guard let self = self else { return }
                     
-                    self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { error in
-                        if let error = error {
-                            print("Error moving to next question: \(error.localizedDescription)")
+                    if self.game.currentQuestionIndex < self.game.questions.count - 1 {
+                        print("Moving to next question: current=\(self.game.currentQuestionIndex)")
+                        self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { error in
+                            if let error = error {
+                                print("Error moving to next question: \(error.localizedDescription)")
+                            }
                         }
+                    } else {
+                        print("Reached end of questions")
+                        self.endGame()
                     }
                 }
             }
