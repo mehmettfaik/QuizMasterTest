@@ -202,10 +202,10 @@ class MultiplayerGameViewController: UIViewController {
             return
         }
         
-        // Reset state for new question
-        hasAnswered = false
-        correctAnswerButton = nil
-        isWaitingForNextQuestion = false
+        // Reset UI state
+        DispatchQueue.main.async {
+            self.resetUIState()
+        }
         
         let questionId = questions[index]
         multiplayerService.getQuestion(questionId: questionId) { [weak self] result in
@@ -231,55 +231,88 @@ class MultiplayerGameViewController: UIViewController {
         }
     }
     
+    private func resetUIState() {
+        // Reset all state variables
+        hasAnswered = false
+        correctAnswerButton = nil
+        isWaitingForNextQuestion = false
+        timeLeft = 5
+        
+        // Reset timer label
+        updateTimerLabel()
+        
+        // Clear existing buttons
+        answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        // Stop existing timer
+        timer?.invalidate()
+        timer = nil
+    }
+    
     private func displayQuestion(_ question: Question) {
         currentQuestion = question
         
-        DispatchQueue.main.async {
-            self.questionLabel.text = question.text
-            self.answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        questionLabel.text = question.text
+        answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        // Create new buttons with proper state
+        for option in question.options {
+            let button = UIButton(type: .system)
+            button.setTitle(option, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 18)
+            button.backgroundColor = .systemBlue.withAlphaComponent(0.1)
+            button.setTitleColor(.systemBlue, for: .normal)
+            button.layer.cornerRadius = 12
+            button.layer.borderWidth = 1
+            button.layer.borderColor = UIColor.systemBlue.cgColor
+            button.heightAnchor.constraint(equalToConstant: 56).isActive = true
+            button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+            button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
             
-            for option in question.options {
-                let button = UIButton(type: .system)
-                button.setTitle(option, for: .normal)
-                button.titleLabel?.font = .systemFont(ofSize: 18)
-                button.backgroundColor = .systemBlue.withAlphaComponent(0.1)
-                button.setTitleColor(.systemBlue, for: .normal)
-                button.layer.cornerRadius = 12
-                button.layer.borderWidth = 1
-                button.layer.borderColor = UIColor.systemBlue.cgColor
-                button.heightAnchor.constraint(equalToConstant: 56).isActive = true
-                button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
-                button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
-                
-                // Add hover effect
-                button.addTarget(self, action: #selector(self.buttonTouchDown(_:)), for: .touchDown)
-                button.addTarget(self, action: #selector(self.buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside])
-                
-                self.answerStackView.addArrangedSubview(button)
-            }
+            // Add hover effect
+            button.addTarget(self, action: #selector(self.buttonTouchDown(_:)), for: .touchDown)
+            button.addTarget(self, action: #selector(self.buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside])
             
-            self.startTimer()
+            // Ensure button is enabled and interactive
+            button.isEnabled = true
+            button.isUserInteractionEnabled = true
+            
+            self.answerStackView.addArrangedSubview(button)
+        }
+        
+        // Wait briefly for UI to update before starting timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.startTimer()
         }
     }
     
     private func startTimer(initialTime: Int = 5) {
+        // Stop existing timer
         timer?.invalidate()
+        timer = nil
+        
         timeLeft = initialTime
         updateTimerLabel()
         
+        // Create new timer
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
-            if self.timeLeft > 0 {
-                self.timeLeft -= 1
-                self.updateTimerLabel()
-            }
-            
-            if self.timeLeft == 0 && !self.isWaitingForNextQuestion {
-                self.timer?.invalidate()
-                self.handleTimeUp()
+            DispatchQueue.main.async {
+                if self.timeLeft > 0 {
+                    self.timeLeft -= 1
+                    self.updateTimerLabel()
+                }
+                
+                if self.timeLeft == 0 && !self.isWaitingForNextQuestion {
+                    self.timer?.invalidate()
+                    self.handleTimeUp()
+                }
             }
         }
+        
+        // Add timer to main run loop
+        RunLoop.main.add(timer!, forMode: .common)
     }
     
     private func updateTimerLabel() {
@@ -301,16 +334,16 @@ class MultiplayerGameViewController: UIViewController {
               !isWaitingForNextQuestion,
               timeLeft > 0 else { return }
         
-        hasAnswered = true
-        let selectedAnswer = sender.title(for: .normal) ?? ""
-        let isCorrect = selectedAnswer == question.correctAnswer
-        
-        // Disable all buttons
+        // Immediately disable all buttons to prevent double taps
         answerStackView.arrangedSubviews.forEach { view in
             if let button = view as? UIButton {
                 button.isEnabled = false
             }
         }
+        
+        hasAnswered = true
+        let selectedAnswer = sender.title(for: .normal) ?? ""
+        let isCorrect = selectedAnswer == question.correctAnswer
         
         // Highlight selected answer
         sender.backgroundColor = .systemPurple.withAlphaComponent(0.3)
@@ -352,28 +385,41 @@ class MultiplayerGameViewController: UIViewController {
         guard !isWaitingForNextQuestion else { return }
         isWaitingForNextQuestion = true
         
-        // Show correct answer
-        correctAnswerButton?.backgroundColor = .systemGreen
-        correctAnswerButton?.layer.borderColor = UIColor.systemGreen.cgColor
+        // Stop the timer
+        timer?.invalidate()
+        timer = nil
         
-        // If user hasn't answered, submit a wrong answer
-        if !hasAnswered {
-            guard let userId = Auth.auth().currentUser?.uid else { return }
-            multiplayerService.submitAnswer(gameId: game.id, userId: userId, isCorrect: false) { [weak self] result in
-                if case .failure(let error) = result {
-                    print("Error submitting answer: \(error.localizedDescription)")
+        DispatchQueue.main.async {
+            // Disable all buttons
+            self.answerStackView.arrangedSubviews.forEach { view in
+                if let button = view as? UIButton {
+                    button.isEnabled = false
                 }
             }
-        }
-        
-        // Only the creator moves to the next question
-        if game.creatorId == Auth.auth().currentUser?.uid {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                guard let self = self else { return }
-                
-                self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { error in
-                    if let error = error {
-                        print("Error moving to next question: \(error.localizedDescription)")
+            
+            // Show correct answer
+            self.correctAnswerButton?.backgroundColor = .systemGreen.withAlphaComponent(0.3)
+            self.correctAnswerButton?.layer.borderColor = UIColor.systemGreen.cgColor
+            
+            // If user hasn't answered, submit a wrong answer
+            if !self.hasAnswered {
+                guard let userId = Auth.auth().currentUser?.uid else { return }
+                self.multiplayerService.submitAnswer(gameId: self.game.id, userId: userId, isCorrect: false) { result in
+                    if case .failure(let error) = result {
+                        print("Error submitting answer: \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            // Only the creator moves to the next question
+            if self.game.creatorId == Auth.auth().currentUser?.uid {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    guard let self = self else { return }
+                    
+                    self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { error in
+                        if let error = error {
+                            print("Error moving to next question: \(error.localizedDescription)")
+                        }
                     }
                 }
             }
