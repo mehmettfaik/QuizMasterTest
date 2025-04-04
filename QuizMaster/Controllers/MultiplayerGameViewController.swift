@@ -106,6 +106,7 @@ class MultiplayerGameViewController: UIViewController {
         answerStackView.axis = .vertical
         answerStackView.spacing = 12
         answerStackView.distribution = .fillEqually
+        answerStackView.alignment = .fill
         
         // Configure score label
         scoreLabel.font = .systemFont(ofSize: 18, weight: .medium)
@@ -134,9 +135,10 @@ class MultiplayerGameViewController: UIViewController {
             answerStackView.topAnchor.constraint(equalTo: questionLabel.bottomAnchor, constant: 40),
             answerStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             answerStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            answerStackView.bottomAnchor.constraint(lessThanOrEqualTo: scoreLabel.topAnchor, constant: -20),
             
             // Score label constraints
-            scoreLabel.topAnchor.constraint(equalTo: answerStackView.bottomAnchor, constant: 30),
+            scoreLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
             scoreLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
             // Score animation view constraints
@@ -242,7 +244,12 @@ class MultiplayerGameViewController: UIViewController {
         updateTimerLabel()
         
         // Clear existing buttons
-        answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        DispatchQueue.main.async {
+            self.answerStackView.arrangedSubviews.forEach { view in
+                view.removeFromSuperview()
+            }
+            self.answerStackView.layoutIfNeeded()
+        }
         
         // Stop existing timer
         timer?.invalidate()
@@ -252,37 +259,53 @@ class MultiplayerGameViewController: UIViewController {
     private func displayQuestion(_ question: Question) {
         currentQuestion = question
         
-        questionLabel.text = question.text
-        answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        
-        // Create new buttons with proper state
-        for option in question.options {
-            let button = UIButton(type: .system)
-            button.setTitle(option, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: 18)
-            button.backgroundColor = .systemBlue.withAlphaComponent(0.1)
-            button.setTitleColor(.systemBlue, for: .normal)
-            button.layer.cornerRadius = 12
-            button.layer.borderWidth = 1
-            button.layer.borderColor = UIColor.systemBlue.cgColor
-            button.heightAnchor.constraint(equalToConstant: 56).isActive = true
-            button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
-            button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
+        DispatchQueue.main.async {
+            // Update question text
+            self.questionLabel.text = question.text
             
-            // Add hover effect
-            button.addTarget(self, action: #selector(self.buttonTouchDown(_:)), for: .touchDown)
-            button.addTarget(self, action: #selector(self.buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside])
+            // Remove existing buttons
+            self.answerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
             
-            // Ensure button is enabled and interactive
-            button.isEnabled = true
-            button.isUserInteractionEnabled = true
+            // Create and add new buttons
+            for option in question.options {
+                let button = UIButton(type: .system)
+                button.translatesAutoresizingMaskIntoConstraints = false
+                button.setTitle(option, for: .normal)
+                button.titleLabel?.font = .systemFont(ofSize: 18)
+                button.backgroundColor = .systemBlue.withAlphaComponent(0.1)
+                button.setTitleColor(.systemBlue, for: .normal)
+                button.layer.cornerRadius = 12
+                button.layer.borderWidth = 1
+                button.layer.borderColor = UIColor.systemBlue.cgColor
+                
+                // Set content hugging and compression resistance
+                button.setContentHuggingPriority(.required, for: .vertical)
+                button.setContentCompressionResistancePriority(.required, for: .vertical)
+                
+                // Configure button constraints
+                button.heightAnchor.constraint(equalToConstant: 56).isActive = true
+                button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+                
+                // Add targets
+                button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
+                button.addTarget(self, action: #selector(self.buttonTouchDown(_:)), for: .touchDown)
+                button.addTarget(self, action: #selector(self.buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside])
+                
+                // Ensure button is enabled and interactive
+                button.isEnabled = true
+                button.isUserInteractionEnabled = true
+                
+                self.answerStackView.addArrangedSubview(button)
+            }
             
-            self.answerStackView.addArrangedSubview(button)
-        }
-        
-        // Wait briefly for UI to update before starting timer
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.startTimer()
+            // Force layout update
+            self.answerStackView.layoutIfNeeded()
+            self.view.layoutIfNeeded()
+            
+            // Start timer after UI is updated
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.startTimer()
+            }
         }
     }
     
