@@ -384,6 +384,18 @@ class MultiplayerGameService {
             }
     }
     
+    func updateQuestionStartTime(gameId: String, completion: @escaping (Error?) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        let updateData: [String: Any] = [
+            "question_start_time": Timestamp(date: Date())
+        ]
+        
+        gameRef.updateData(updateData) { error in
+            completion(error)
+        }
+    }
+    
     func submitAnswer(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
         let gameRef = db.collection("multiplayer_games").document(gameId)
         
@@ -400,8 +412,10 @@ class MultiplayerGameService {
                 return
             }
             
+            // Get current player score
             var playerScore = game.playerScores[userId] ?? PlayerScore(userId: userId, score: 0, correctAnswers: 0, wrongAnswers: 0)
             
+            // Update score based on answer
             if isCorrect {
                 playerScore.score += 10
                 playerScore.correctAnswers += 1
@@ -409,13 +423,13 @@ class MultiplayerGameService {
                 playerScore.wrongAnswers += 1
             }
             
+            // Update player score in game document
             let updateData: [String: Any] = [
                 "player_scores.\(userId)": [
                     "score": playerScore.score,
                     "correct_answers": playerScore.correctAnswers,
                     "wrong_answers": playerScore.wrongAnswers
-                ],
-                "current_question_index": game.currentQuestionIndex + 1
+                ]
             ]
             
             gameRef.updateData(updateData) { error in
@@ -424,6 +438,7 @@ class MultiplayerGameService {
                     return
                 }
                 
+                // Get updated game data
                 gameRef.getDocument { document, error in
                     if let error = error {
                         completion(.failure(error))

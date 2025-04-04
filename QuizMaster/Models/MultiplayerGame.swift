@@ -39,6 +39,7 @@ struct MultiplayerGame: Codable {
     let createdAt: Date
     let responseTime: Date?
     let startTime: Date?
+    let questionStartTime: Timestamp?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -55,6 +56,7 @@ struct MultiplayerGame: Codable {
         case createdAt = "created_at"
         case responseTime = "response_time"
         case startTime = "start_time"
+        case questionStartTime = "question_start_time"
     }
     
     static func from(_ document: DocumentSnapshot) -> MultiplayerGame? {
@@ -75,6 +77,7 @@ struct MultiplayerGame: Codable {
         let difficulty = data["difficulty"] as? String
         let responseTime = (data["response_time"] as? Timestamp)?.dateValue()
         let startTime = (data["start_time"] as? Timestamp)?.dateValue()
+        let questionStartTime = data["question_start_time"] as? Timestamp
         
         var playerScores: [String: PlayerScore] = [:]
         if let scores = data["player_scores"] as? [String: [String: Any]] {
@@ -106,7 +109,8 @@ struct MultiplayerGame: Codable {
             difficulty: difficulty,
             createdAt: createdAt,
             responseTime: responseTime,
-            startTime: startTime
+            startTime: startTime,
+            questionStartTime: questionStartTime
         )
     }
 } 
