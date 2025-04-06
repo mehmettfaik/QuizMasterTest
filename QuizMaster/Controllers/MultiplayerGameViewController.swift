@@ -331,16 +331,23 @@ class MultiplayerGameViewController: UIViewController {
     
     private func updateScoreLabel() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // Mevcut oyuncunun bilgileri
         let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
+        let currentPlayerCorrect = game.playerScores[currentUserId]?.correctAnswers ?? 0
+        
+        // Rakip oyuncunun bilgileri
         let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
         let opponentScore = game.playerScores[opponentId]?.score ?? 0
+        let opponentCorrect = game.playerScores[opponentId]?.correctAnswers ?? 0
         
         // Kullanıcı isimlerini belirle
         let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
         let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
         
-        yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts"
-        opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts"
+        // Skor etiketlerini güncelle
+        yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts (\(currentPlayerCorrect) ✓)"
+        opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts (\(opponentCorrect) ✓)"
     }
     
     private func animateScoreChange(for label: UILabel, from oldScore: Int, to newScore: Int) {
@@ -452,13 +459,25 @@ class MultiplayerGameViewController: UIViewController {
         
         DispatchQueue.main.async {
             // Sonuç ekranını göster
-            let resultVC = UIAlertController(title: self.getGameResultTitle(), 
-                                           message: self.getGameResultMessage(),
-                                           preferredStyle: .alert)
+            let resultVC = UIAlertController(
+                title: self.getGameResultTitle(),
+                message: self.getGameResultMessage(),
+                preferredStyle: .alert
+            )
             
-            resultVC.addAction(UIAlertAction(title: "Return to Home", style: .default) { [weak self] _ in
+            // "Return to Home" butonu ekle
+            resultVC.addAction(UIAlertAction(
+                title: "Return to Home",
+                style: .default
+            ) { [weak self] _ in
                 self?.navigationController?.popToRootViewController(animated: true)
             })
+            
+            // Mesaj metninin görünümünü özelleştir
+            if let messageLabel = resultVC.view.subviews.first?.subviews.first?.subviews.first?.subviews[1] as? UILabel {
+                messageLabel.textAlignment = .left
+                messageLabel.numberOfLines = 0
+            }
             
             self.present(resultVC, animated: true)
         }
@@ -483,23 +502,34 @@ class MultiplayerGameViewController: UIViewController {
     private func getGameResultMessage() -> String {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return "" }
         
-        let currentPlayer = game.playerScores[currentUserId]
-        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
-        let opponent = game.playerScores[opponentId]
-        
+        // Mevcut oyuncunun bilgileri
         let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
-        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
+        let currentPlayer = game.playerScores[currentUserId]
+        let currentPlayerScore = currentPlayer?.score ?? 0
+        let currentPlayerCorrect = currentPlayer?.correctAnswers ?? 0
+        let currentPlayerWrong = currentPlayer?.wrongAnswers ?? 0
         
-        return """
+        // Rakip oyuncunun bilgileri
+        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
+        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
+        let opponent = game.playerScores[opponentId]
+        let opponentScore = opponent?.score ?? 0
+        let opponentCorrect = opponent?.correctAnswers ?? 0
+        let opponentWrong = opponent?.wrongAnswers ?? 0
+        
+        // Sonuç mesajını oluştur
+        let resultMessage = """
             \(currentPlayerName)
-            Score: \(currentPlayer?.score ?? 0)
-            Correct: \(currentPlayer?.correctAnswers ?? 0)
-            Wrong: \(currentPlayer?.wrongAnswers ?? 0)
+            Score: \(currentPlayerScore)
+            Correct: \(currentPlayerCorrect)
+            Wrong: \(currentPlayerWrong)
             
             \(opponentName)
-            Score: \(opponent?.score ?? 0)
-            Correct: \(opponent?.correctAnswers ?? 0)
-            Wrong: \(opponent?.wrongAnswers ?? 0)
+            Score: \(opponentScore)
+            Correct: \(opponentCorrect)
+            Wrong: \(opponentWrong)
             """
+        
+        return resultMessage
     }
 } 
