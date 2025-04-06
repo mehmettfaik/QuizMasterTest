@@ -519,4 +519,106 @@ class MultiplayerGameService {
             }
         }
     }
+}
+
+enum QuestionPhase: String {
+    case starting
+    case showing_result
+    case transitioning
+}
+
+struct QuestionState {
+    let phase: QuestionPhase
+    let questionIndex: Int
+    let startTime: Date
+}
+
+extension MultiplayerGameService {
+    func startNewQuestion(gameId: String, questionIndex: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        let questionState: [String: Any] = [
+            "phase": QuestionPhase.starting.rawValue,
+            "question_index": questionIndex,
+            "start_time": Timestamp(date: Date()),
+            "last_updated": Timestamp(date: Date())
+        ]
+        
+        gameRef.updateData([
+            "current_question_index": questionIndex,
+            "question_state": questionState
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func moveToResultPhase(gameId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        let questionState: [String: Any] = [
+            "phase": QuestionPhase.showing_result.rawValue,
+            "last_updated": Timestamp(date: Date())
+        ]
+        
+        gameRef.updateData([
+            "question_state": questionState
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func moveToTransitionPhase(gameId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        let questionState: [String: Any] = [
+            "phase": QuestionPhase.transitioning.rawValue,
+            "last_updated": Timestamp(date: Date())
+        ]
+        
+        gameRef.updateData([
+            "question_state": questionState
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func listenForQuestionState(gameId: String, completion: @escaping (Result<QuestionState, Error>) -> Void) -> ListenerRegistration {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        return gameRef.addSnapshotListener { document, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = document?.data(),
+                  let questionStateData = data["question_state"] as? [String: Any],
+                  let phaseString = questionStateData["phase"] as? String,
+                  let phase = QuestionPhase(rawValue: phaseString),
+                  let questionIndex = questionStateData["question_index"] as? Int,
+                  let startTimestamp = questionStateData["start_time"] as? Timestamp else {
+                return
+            }
+            
+            let state = QuestionState(
+                phase: phase,
+                questionIndex: questionIndex,
+                startTime: startTimestamp.dateValue()
+            )
+            
+            completion(.success(state))
+        }
+    }
 } 

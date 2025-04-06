@@ -6,6 +6,7 @@ class MultiplayerGameViewController: UIViewController {
     private let game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
     private var gameListener: ListenerRegistration?
+    private var questionStateListener: ListenerRegistration?
     
     private let questionLabel: UILabel = {
         let label = UILabel()
@@ -46,11 +47,12 @@ class MultiplayerGameViewController: UIViewController {
     }()
     
     private var timer: Timer?
-    private var timeLeft: Int = 5 // 5 seconds per question
+    private var timeLeft: Int = 5
     private var currentQuestion: Question?
     private var hasAnswered: Bool = false
     private var selectedAnswer: String?
     private var selectedButton: UIButton?
+    private var isQuestionActive: Bool = false
     
     init(game: MultiplayerGame) {
         self.game = game
@@ -65,12 +67,17 @@ class MultiplayerGameViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupGameListener()
-        loadQuestion(at: game.currentQuestionIndex)
+        
+        // Eğer oyun yaratıcısıysak, ilk soruyu başlatalım
+        if game.creatorId == Auth.auth().currentUser?.uid {
+            startNewQuestion(at: game.currentQuestionIndex)
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         gameListener?.remove()
+        questionStateListener?.remove()
         timer?.invalidate()
     }
     
@@ -108,6 +115,7 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func setupGameListener() {
+        // Oyun güncellemelerini dinle
         gameListener = multiplayerService.listenForGameUpdates(gameId: game.id) { [weak self] result in
             switch result {
             case .success(let updatedGame):
@@ -116,16 +124,98 @@ class MultiplayerGameViewController: UIViewController {
                 print("Error listening for game updates: \(error.localizedDescription)")
             }
         }
+        
+        // Soru durumunu dinle
+        questionStateListener = multiplayerService.listenForQuestionState(gameId: game.id) { [weak self] result in
+            switch result {
+            case .success(let state):
+                self?.handleQuestionStateUpdate(state)
+            case .failure(let error):
+                print("Error listening for question state: \(error.localizedDescription)")
+            }
+        }
     }
     
     private func handleGameUpdate(_ updatedGame: MultiplayerGame) {
-        if updatedGame.currentQuestionIndex != game.currentQuestionIndex {
-            loadQuestion(at: updatedGame.currentQuestionIndex)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Skor güncellemesi
+            self.updateScoreLabel()
+            
+            // Oyun durumu kontrolü
+            if updatedGame.status == .completed {
+                self.endGame()
+            }
+        }
+    }
+    
+    private func handleQuestionStateUpdate(_ state: QuestionState) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            switch state.phase {
+            case .starting:
+                self.loadQuestion(at: state.questionIndex)
+                self.startTimer(serverTime: state.startTime)
+                
+            case .showing_result:
+                self.showAnswerResult()
+                
+            case .transitioning:
+                // 2 saniye sonra bir sonraki soruya geç
+                if self.game.creatorId == Auth.auth().currentUser?.uid {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.startNewQuestion(at: state.questionIndex + 1)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func startNewQuestion(at index: Int) {
+        multiplayerService.startNewQuestion(gameId: game.id, questionIndex: index) { _ in }
+    }
+    
+    private func startTimer(serverTime: Date) {
+        timer?.invalidate()
+        
+        // Server zamanı ile local zaman arasındaki farkı hesapla
+        let timeDifference = Date().timeIntervalSince(serverTime)
+        timeLeft = max(0, 5 - Int(timeDifference))
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.timeLeft -= 1
+            self.updateTimerLabel()
+            
+            if self.timeLeft <= 0 {
+                self.timer?.invalidate()
+                if !self.hasAnswered {
+                    self.handleTimeUp()
+                }
+                // Oyun yaratıcısı sonuç fazını başlatır
+                if self.game.creatorId == Auth.auth().currentUser?.uid {
+                    self.multiplayerService.moveToResultPhase(gameId: self.game.id) { _ in }
+                }
+            }
         }
         
-        DispatchQueue.main.async {
-            self.updateScoreLabel()
-        }
+        updateTimerLabel()
+    }
+    
+    private func updateTimerLabel() {
+        timerLabel.text = "Time: \(timeLeft)s"
+    }
+    
+    private func updateScoreLabel() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
+        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
+        let opponentScore = game.playerScores[opponentId]?.score ?? 0
+        
+        scoreLabel.text = "You: \(currentPlayerScore) - Opponent: \(opponentScore)"
     }
     
     private func loadQuestion(at index: Int) {
@@ -167,43 +257,7 @@ class MultiplayerGameViewController: UIViewController {
                 button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
                 self.answerStackView.addArrangedSubview(button)
             }
-            
-            self.startTimer()
         }
-    }
-    
-    private func startTimer() {
-        timeLeft = 5
-        updateTimerLabel()
-        
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            self.timeLeft -= 1
-            self.updateTimerLabel()
-            
-            if self.timeLeft <= 0 {
-                self.timer?.invalidate()
-                if !self.hasAnswered {
-                    self.handleTimeUp()
-                }
-                self.showAnswerResult()
-            }
-        }
-    }
-    
-    private func updateTimerLabel() {
-        timerLabel.text = "Time: \(timeLeft)s"
-    }
-    
-    private func updateScoreLabel() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
-        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
-        let opponentScore = game.playerScores[opponentId]?.score ?? 0
-        
-        scoreLabel.text = "You: \(currentPlayerScore) - Opponent: \(opponentScore)"
     }
     
     @objc private func answerButtonTapped(_ button: UIButton) {
@@ -239,25 +293,13 @@ class MultiplayerGameViewController: UIViewController {
         // Tüm butonları devre dışı bırak
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
         
-        // Önce tüm butonları normal renge çevir (seçili olan gri kalacak)
-        answerStackView.arrangedSubviews.forEach { view in
-            guard let button = view as? UIButton else { return }
-            if button != selectedButton {
-                button.backgroundColor = .systemBlue
-            }
-        }
-        
-        // Doğru cevabı ve kullanıcının yanlış cevabını göster
+        // Doğru cevabı yeşil yap
         answerStackView.arrangedSubviews.forEach { view in
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
             
             if buttonTitle == currentQuestion.correctAnswer {
-                // Doğru cevabı yeşil yap
                 button.backgroundColor = .systemGreen
-            } else if buttonTitle == selectedAnswer && buttonTitle != currentQuestion.correctAnswer {
-                // Kullanıcının yanlış cevabını kırmızı yap
-                button.backgroundColor = .systemRed
             }
         }
         
@@ -272,10 +314,9 @@ class MultiplayerGameViewController: UIViewController {
         }
         resultLabel.isHidden = false
         
-        // 2 saniye sonra bir sonraki soruya geç
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard let self = self else { return }
-            self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { _ in }
+        // Oyun yaratıcısı geçiş fazını başlatır
+        if game.creatorId == Auth.auth().currentUser?.uid {
+            multiplayerService.moveToTransitionPhase(gameId: game.id) { _ in }
         }
     }
     
