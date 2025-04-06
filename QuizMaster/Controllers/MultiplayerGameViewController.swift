@@ -6,6 +6,12 @@ class MultiplayerGameViewController: UIViewController {
     private let game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
     private var gameListener: ListenerRegistration?
+    private var answerListener: ListenerRegistration?
+    
+    private var bothPlayersAnswered = false
+    private var showingCorrectAnswer = false
+    private var nextQuestionTimer: Timer?
+    private var waitingForNextQuestion = false
     
     private let questionLabel: UILabel = {
         let label = UILabel()
@@ -60,7 +66,9 @@ class MultiplayerGameViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         gameListener?.remove()
+        answerListener?.remove()
         timer?.invalidate()
+        nextQuestionTimer?.invalidate()
     }
     
     private func setupUI() {
@@ -132,6 +140,9 @@ class MultiplayerGameViewController: UIViewController {
     
     private func displayQuestion(_ question: Question) {
         currentQuestion = question
+        bothPlayersAnswered = false
+        showingCorrectAnswer = false
+        waitingForNextQuestion = false
         
         DispatchQueue.main.async {
             self.questionLabel.text = question.text
@@ -149,7 +160,66 @@ class MultiplayerGameViewController: UIViewController {
             }
             
             self.startTimer()
+            self.setupAnswerListener()
         }
+    }
+    
+    private func setupAnswerListener() {
+        answerListener?.remove()
+        answerListener = multiplayerService.listenForAnswers(gameId: game.id) { [weak self] result in
+            switch result {
+            case .success(let answers):
+                self?.checkIfBothPlayersAnswered(answers)
+            case .failure(let error):
+                print("Error listening for answers: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func checkIfBothPlayersAnswered(_ answers: [String: Bool]) {
+        guard !bothPlayersAnswered else { return }
+        
+        if answers.count == 2 {
+            bothPlayersAnswered = true
+            DispatchQueue.main.async {
+                if !self.showingCorrectAnswer {
+                    self.showCorrectAnswer()
+                }
+            }
+        }
+    }
+    
+    private func showCorrectAnswer() {
+        guard let currentQuestion = currentQuestion,
+              !showingCorrectAnswer else { return }
+        
+        showingCorrectAnswer = true
+        
+        answerStackView.arrangedSubviews.forEach { view in
+            guard let button = view as? UIButton,
+                  let buttonTitle = button.title(for: .normal) else { return }
+            
+            if buttonTitle == currentQuestion.correctAnswer {
+                button.backgroundColor = .systemGreen
+            } else {
+                button.backgroundColor = .systemGray
+            }
+        }
+        
+        // 2 saniye sonra bir sonraki soruya geç
+        nextQuestionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            self?.moveToNextQuestion()
+        }
+    }
+    
+    private func moveToNextQuestion() {
+        guard !waitingForNextQuestion else { return }
+        waitingForNextQuestion = true
+        
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              game.creatorId == currentUserId else { return }
+        
+        multiplayerService.moveToNextQuestion(gameId: game.id) { _ in }
     }
     
     private func startTimer() {
@@ -186,23 +256,34 @@ class MultiplayerGameViewController: UIViewController {
     @objc private func answerButtonTapped(_ button: UIButton) {
         guard let currentQuestion = currentQuestion,
               let answer = button.title(for: .normal),
-              let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        timer?.invalidate()
+              let currentUserId = Auth.auth().currentUser?.uid,
+              !showingCorrectAnswer else { return }
         
         let isCorrect = answer == currentQuestion.correctAnswer
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: isCorrect) { _ in }
         
         // Disable all buttons after answering
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+        
+        // Eğer her iki oyuncu da cevap verdiyse veya süre dolduysa doğru cevabı göster
+        if bothPlayersAnswered || timeLeft <= 0 {
+            showCorrectAnswer()
+        }
     }
     
     private func handleTimeUp() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
+        guard !showingCorrectAnswer else { return }
         
-        // Disable all buttons after time is up
+        // Süre dolduğunda henüz cevap verilmediyse otomatik olarak yanlış cevap gönder
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
+        }
+        
+        // Tüm butonları devre dışı bırak
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+        
+        // Doğru cevabı göster
+        showCorrectAnswer()
     }
     
     private func endGame() {

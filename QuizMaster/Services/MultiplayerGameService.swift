@@ -384,10 +384,74 @@ class MultiplayerGameService {
             }
     }
     
-    func submitAnswer(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
+    func submitAnswer(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        let answerRef = db.collection("multiplayer_games").document(gameId)
+            .collection("current_answers").document(userId)
+        
+        let answerData: [String: Any] = [
+            "is_correct": isCorrect,
+            "timestamp": Timestamp(date: Date())
+        ]
+        
+        answerRef.setData(answerData) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                // Update player score
+                self.updatePlayerScore(gameId: gameId, userId: userId, isCorrect: isCorrect, completion: completion)
+            }
+        }
+    }
+    
+    private func updatePlayerScore(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
         let gameRef = db.collection("multiplayer_games").document(gameId)
         
         gameRef.getDocument { [weak self] document, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let document = document,
+                  var playerScores = document.data()?["player_scores"] as? [String: [String: Any]] else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid game data"])))
+                return
+            }
+            
+            // Update player's score
+            if var playerScore = playerScores[userId] {
+                let currentScore = playerScore["score"] as? Int ?? 0
+                let correctAnswers = playerScore["correct_answers"] as? Int ?? 0
+                let wrongAnswers = playerScore["wrong_answers"] as? Int ?? 0
+                
+                if isCorrect {
+                    playerScore["score"] = currentScore + 10
+                    playerScore["correct_answers"] = correctAnswers + 1
+                } else {
+                    playerScore["wrong_answers"] = wrongAnswers + 1
+                }
+                
+                playerScores[userId] = playerScore
+                
+                // Update the game document with new scores
+                gameRef.updateData(["player_scores": playerScores]) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
+            }
+        }
+    }
+    
+    func moveToNextQuestion(gameId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        let batch = db.batch()
+        
+        // Clear current answers
+        let answersRef = gameRef.collection("current_answers")
+        answersRef.getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
             
             if let error = error {
@@ -395,45 +459,45 @@ class MultiplayerGameService {
                 return
             }
             
-            guard let game = document.flatMap(MultiplayerGame.from) else {
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"])))
-                return
+            // Delete all current answers
+            snapshot?.documents.forEach { document in
+                batch.deleteDocument(answersRef.document(document.documentID))
             }
             
-            var playerScore = game.playerScores[userId] ?? PlayerScore(userId: userId, score: 0, correctAnswers: 0, wrongAnswers: 0)
-            
-            if isCorrect {
-                playerScore.score += 10
-                playerScore.correctAnswers += 1
-            } else {
-                playerScore.wrongAnswers += 1
-            }
-            
-            let updateData: [String: Any] = [
-                "player_scores.\(userId)": [
-                    "score": playerScore.score,
-                    "correct_answers": playerScore.correctAnswers,
-                    "wrong_answers": playerScore.wrongAnswers
-                ],
-                "current_question_index": game.currentQuestionIndex + 1
-            ]
-            
-            gameRef.updateData(updateData) { error in
+            // Increment current question index
+            gameRef.getDocument { document, error in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
                 
-                gameRef.getDocument { document, error in
+                guard let currentIndex = document?.data()?["current_question_index"] as? Int,
+                      let totalQuestions = document?.data()?["questions"] as? [String] else {
+                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid game data"])))
+                    return
+                }
+                
+                let nextIndex = currentIndex + 1
+                
+                if nextIndex >= totalQuestions.count {
+                    // Game is complete
+                    batch.updateData([
+                        "status": GameStatus.completed.rawValue,
+                        "completed_at": Timestamp(date: Date())
+                    ], forDocument: gameRef)
+                } else {
+                    // Move to next question
+                    batch.updateData([
+                        "current_question_index": nextIndex
+                    ], forDocument: gameRef)
+                }
+                
+                // Commit all changes
+                batch.commit { error in
                     if let error = error {
                         completion(.failure(error))
-                        return
-                    }
-                    
-                    if let updatedGame = document.flatMap(MultiplayerGame.from) {
-                        completion(.success(updatedGame))
                     } else {
-                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to update game"])))
+                        completion(.success(()))
                     }
                 }
             }
@@ -486,5 +550,31 @@ class MultiplayerGameService {
         }
         
         attempt(remaining: maxAttempts)
+    }
+    
+    // MARK: - Synchronous Quiz Management
+    
+    func listenForAnswers(gameId: String, completion: @escaping (Result<[String: Bool], Error>) -> Void) -> ListenerRegistration {
+        return db.collection("multiplayer_games").document(gameId)
+            .collection("current_answers")
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([:]))
+                    return
+                }
+                
+                let answers = documents.reduce(into: [String: Bool]()) { result, document in
+                    if let isCorrect = document.data()["is_correct"] as? Bool {
+                        result[document.documentID] = isCorrect
+                    }
+                }
+                
+                completion(.success(answers))
+            }
     }
 } 
