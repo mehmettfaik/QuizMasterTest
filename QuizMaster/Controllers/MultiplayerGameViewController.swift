@@ -50,6 +50,7 @@ class MultiplayerGameViewController: UIViewController {
     private var currentQuestion: Question?
     private var hasAnswered: Bool = false
     private var selectedAnswer: String?
+    private var selectedButton: UIButton?
     
     init(game: MultiplayerGame) {
         self.game = game
@@ -135,6 +136,7 @@ class MultiplayerGameViewController: UIViewController {
         
         hasAnswered = false
         selectedAnswer = nil
+        selectedButton = nil
         resultLabel.isHidden = true
         
         let questionId = questions[index]
@@ -212,23 +214,14 @@ class MultiplayerGameViewController: UIViewController {
         
         hasAnswered = true
         selectedAnswer = answer
+        selectedButton = button
+        
+        // Sadece seçilen butonu devre dışı bırak ve rengini değiştir
+        button.isEnabled = false
+        button.backgroundColor = .systemGray
         
         let isCorrect = answer == currentQuestion.correctAnswer
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: isCorrect) { _ in }
-        
-        // Disable all buttons after answering
-        answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
-        
-        // Color the selected button
-        button.backgroundColor = isCorrect ? .systemGreen : .systemRed
-        
-        // If timer is still running, wait for it to finish
-        if timeLeft > 0 {
-            // Keep the timer running until it reaches 0
-            return
-        } else {
-            showAnswerResult()
-        }
     }
     
     private func handleTimeUp() {
@@ -236,14 +229,17 @@ class MultiplayerGameViewController: UIViewController {
         hasAnswered = true
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
         
-        // Disable all buttons after time is up
+        // Tüm butonları devre dışı bırak
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
     }
     
     private func showAnswerResult() {
         guard let currentQuestion = currentQuestion else { return }
         
-        // Show the correct answer
+        // Tüm butonları devre dışı bırak
+        answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+        
+        // Doğru ve yanlış cevapları göster
         answerStackView.arrangedSubviews.forEach { view in
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
@@ -255,7 +251,7 @@ class MultiplayerGameViewController: UIViewController {
             }
         }
         
-        // Show result message
+        // Sonuç mesajını göster
         if let selectedAnswer = selectedAnswer {
             let isCorrect = selectedAnswer == currentQuestion.correctAnswer
             resultLabel.text = isCorrect ? "Correct! ✅" : "Wrong! ❌"
@@ -266,7 +262,7 @@ class MultiplayerGameViewController: UIViewController {
         }
         resultLabel.isHidden = false
         
-        // Wait 2 seconds before moving to the next question
+        // 2 saniye sonra bir sonraki soruya geç
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard let self = self else { return }
             self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { _ in }
