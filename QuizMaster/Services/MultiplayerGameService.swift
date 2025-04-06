@@ -384,18 +384,6 @@ class MultiplayerGameService {
             }
     }
     
-    func updateQuestionStartTime(gameId: String, completion: @escaping (Error?) -> Void) {
-        let gameRef = db.collection("multiplayer_games").document(gameId)
-        
-        let updateData: [String: Any] = [
-            "question_start_time": Timestamp(date: Date())
-        ]
-        
-        gameRef.updateData(updateData) { error in
-            completion(error)
-        }
-    }
-    
     func submitAnswer(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
         let gameRef = db.collection("multiplayer_games").document(gameId)
         
@@ -412,10 +400,8 @@ class MultiplayerGameService {
                 return
             }
             
-            // Get current player score
             var playerScore = game.playerScores[userId] ?? PlayerScore(userId: userId, score: 0, correctAnswers: 0, wrongAnswers: 0)
             
-            // Update score based on answer
             if isCorrect {
                 playerScore.score += 10
                 playerScore.correctAnswers += 1
@@ -423,13 +409,13 @@ class MultiplayerGameService {
                 playerScore.wrongAnswers += 1
             }
             
-            // Update player score in game document
             let updateData: [String: Any] = [
                 "player_scores.\(userId)": [
                     "score": playerScore.score,
                     "correct_answers": playerScore.correctAnswers,
                     "wrong_answers": playerScore.wrongAnswers
-                ]
+                ],
+                "current_question_index": game.currentQuestionIndex + 1
             ]
             
             gameRef.updateData(updateData) { error in
@@ -438,7 +424,6 @@ class MultiplayerGameService {
                     return
                 }
                 
-                // Get updated game data
                 gameRef.getDocument { document, error in
                     if let error = error {
                         completion(.failure(error))
@@ -450,82 +435,6 @@ class MultiplayerGameService {
                     } else {
                         completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to update game"])))
                     }
-                }
-            }
-        }
-    }
-    
-    func updateGameScore(gameId: String, points: Int, completion: @escaping (Error?) -> Void) {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"]))
-            return
-        }
-        
-        let gameRef = db.collection("multiplayer_games").document(gameId)
-        
-        gameRef.getDocument { [weak self] document, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                completion(error)
-                return
-            }
-            
-            guard let game = document.flatMap(MultiplayerGame.from) else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"]))
-                return
-            }
-            
-            var playerScore = game.playerScores[userId] ?? PlayerScore(userId: userId, score: 0, correctAnswers: 0, wrongAnswers: 0)
-            playerScore.score += points
-            playerScore.correctAnswers += 1
-            
-            let updateData: [String: Any] = [
-                "player_scores.\(userId)": [
-                    "score": playerScore.score,
-                    "correct_answers": playerScore.correctAnswers,
-                    "wrong_answers": playerScore.wrongAnswers
-                ]
-            ]
-            
-            gameRef.updateData(updateData) { error in
-                completion(error)
-            }
-        }
-    }
-    
-    func moveToNextQuestion(gameId: String, completion: @escaping (Error?) -> Void) {
-        let gameRef = db.collection("multiplayer_games").document(gameId)
-        
-        gameRef.getDocument { [weak self] (document, error) in
-            if let error = error {
-                completion(error)
-                return
-            }
-            
-            guard let document = document,
-                  document.exists,
-                  let data = document.data(),
-                  let currentIndex = data["current_question_index"] as? Int,
-                  let questions = data["questions"] as? [String] else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid game data"]))
-                return
-            }
-            
-            // Check if we can move to next question
-            if currentIndex < questions.count - 1 {
-                gameRef.updateData([
-                    "current_question_index": currentIndex + 1,
-                    "question_start_time": FieldValue.serverTimestamp()
-                ]) { error in
-                    completion(error)
-                }
-            } else {
-                // End the game
-                gameRef.updateData([
-                    "status": GameStatus.completed.rawValue
-                ]) { error in
-                    completion(error)
                 }
             }
         }
