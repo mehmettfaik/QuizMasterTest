@@ -239,14 +239,24 @@ class MultiplayerGameViewController: UIViewController {
         // Tüm butonları devre dışı bırak
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
         
-        // Doğru ve yanlış cevapları göster
+        // Önce tüm butonları normal renge çevir (seçili olan gri kalacak)
+        answerStackView.arrangedSubviews.forEach { view in
+            guard let button = view as? UIButton else { return }
+            if button != selectedButton {
+                button.backgroundColor = .systemBlue
+            }
+        }
+        
+        // Doğru cevabı ve kullanıcının yanlış cevabını göster
         answerStackView.arrangedSubviews.forEach { view in
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
             
             if buttonTitle == currentQuestion.correctAnswer {
+                // Doğru cevabı yeşil yap
                 button.backgroundColor = .systemGreen
-            } else if buttonTitle == selectedAnswer {
+            } else if buttonTitle == selectedAnswer && buttonTitle != currentQuestion.correctAnswer {
+                // Kullanıcının yanlış cevabını kırmızı yap
                 button.backgroundColor = .systemRed
             }
         }
