@@ -13,6 +13,8 @@ class MultiplayerGameViewController: UIViewController {
     private var nextQuestionTimer: Timer?
     private var waitingForNextQuestion = false
     
+    private var selectedButton: UIButton?
+    
     private let questionLabel: UILabel = {
         let label = UILabel()
         label.numberOfLines = 0
@@ -155,6 +157,7 @@ class MultiplayerGameViewController: UIViewController {
         bothPlayersAnswered = false
         showingCorrectAnswer = false
         waitingForNextQuestion = false
+        selectedButton = nil
         
         DispatchQueue.main.async {
             self.questionLabel.text = question.text
@@ -166,6 +169,7 @@ class MultiplayerGameViewController: UIViewController {
                 button.backgroundColor = .systemBlue
                 button.setTitleColor(.white, for: .normal)
                 button.layer.cornerRadius = 8
+                button.layer.borderWidth = 0
                 button.heightAnchor.constraint(equalToConstant: 44).isActive = true
                 button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
                 self.answerStackView.addArrangedSubview(button)
@@ -214,10 +218,18 @@ class MultiplayerGameViewController: UIViewController {
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
             
+            // Seçili butonun vurgusunu kaldır
+            button.layer.borderWidth = 0
+            
             if buttonTitle == currentQuestion.correctAnswer {
                 button.backgroundColor = .systemGreen
             } else {
-                button.backgroundColor = .systemGray
+                // Eğer bu buton seçilmişse ve yanlışsa, kırmızı yap
+                if button == selectedButton {
+                    button.backgroundColor = .systemRed
+                } else {
+                    button.backgroundColor = .systemGray
+                }
             }
         }
         
@@ -281,6 +293,9 @@ class MultiplayerGameViewController: UIViewController {
               let currentUserId = Auth.auth().currentUser?.uid,
               !showingCorrectAnswer else { return }
         
+        // Seçilen butonu vurgula
+        highlightSelectedButton(button)
+        
         let isCorrect = answer == currentQuestion.correctAnswer
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: isCorrect) { _ in }
         
@@ -293,6 +308,25 @@ class MultiplayerGameViewController: UIViewController {
         }
     }
     
+    private func highlightSelectedButton(_ button: UIButton) {
+        // Önceki seçili butonu normale döndür
+        selectedButton?.backgroundColor = .systemBlue
+        selectedButton?.layer.borderWidth = 0
+        
+        // Yeni butonu vurgula
+        button.backgroundColor = .systemIndigo
+        button.layer.borderColor = UIColor.white.cgColor
+        button.layer.borderWidth = 2
+        button.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+        
+        // Animasyonlu geçiş efekti
+        UIView.animate(withDuration: 0.2, animations: {
+            button.transform = .identity
+        })
+        
+        selectedButton = button
+    }
+    
     private func handleTimeUp() {
         guard !showingCorrectAnswer else { return }
         
@@ -300,6 +334,10 @@ class MultiplayerGameViewController: UIViewController {
         if let currentUserId = Auth.auth().currentUser?.uid {
             multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
         }
+        
+        // Seçili butonun vurgusunu kaldır
+        selectedButton?.layer.borderWidth = 0
+        selectedButton = nil
         
         // Tüm butonları devre dışı bırak
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
