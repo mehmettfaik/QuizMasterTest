@@ -487,98 +487,94 @@ class MultiplayerGameViewController: UIViewController {
         timer?.invalidate()
         nextQuestionTimer?.invalidate()
         
-        DispatchQueue.main.async {
-            // Özel sonuç ekranı oluştur
-            let resultVC = UIViewController()
-            resultVC.view.backgroundColor = .systemBackground
-            resultVC.modalPresentationStyle = .fullScreen
-            
-            // Başlık etiketi
-            let titleLabel = UILabel()
-            titleLabel.text = "Online Quiz Bitti"
-            titleLabel.font = .systemFont(ofSize: 28, weight: .bold)
-            titleLabel.textAlignment = .center
-            titleLabel.textColor = .label
-            
-            // Sonuç container view
-            let resultContainer = UIView()
-            resultContainer.backgroundColor = .secondarySystemBackground
-            resultContainer.layer.cornerRadius = 16
-            
-            // Sonuç metni etiketi
-            let resultLabel = UILabel()
-            resultLabel.text = self.getGameResultMessage()
-            resultLabel.numberOfLines = 0
-            resultLabel.font = .systemFont(ofSize: 18)
-            resultLabel.textColor = .label
-            
-            // Profile butonu
-            let profileButton = UIButton(type: .system)
-            profileButton.setTitle("Profili Görüntüle", for: .normal)
-            profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-            profileButton.backgroundColor = .systemBlue
-            profileButton.setTitleColor(.white, for: .normal)
-            profileButton.layer.cornerRadius = 12
-            profileButton.addTarget(self, action: #selector(self.goToProfile), for: .touchUpInside)
-            
-            // View'ları ekle
-            [titleLabel, resultContainer, profileButton].forEach {
-                $0.translatesAutoresizingMaskIntoConstraints = false
-                resultVC.view.addSubview($0)
-            }
-            
-            resultContainer.addSubview(resultLabel)
-            resultLabel.translatesAutoresizingMaskIntoConstraints = false
-            
-            // Constraint'leri ayarla
-            NSLayoutConstraint.activate([
-                titleLabel.topAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.topAnchor, constant: 40),
-                titleLabel.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
-                titleLabel.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
-                
-                resultContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
-                resultContainer.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
-                resultContainer.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
-                
-                resultLabel.topAnchor.constraint(equalTo: resultContainer.topAnchor, constant: 20),
-                resultLabel.leadingAnchor.constraint(equalTo: resultContainer.leadingAnchor, constant: 20),
-                resultLabel.trailingAnchor.constraint(equalTo: resultContainer.trailingAnchor, constant: -20),
-                resultLabel.bottomAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: -20),
-                
-                profileButton.bottomAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
-                profileButton.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 40),
-                profileButton.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -40),
-                profileButton.heightAnchor.constraint(equalToConstant: 50)
-            ])
-            
-            self.present(resultVC, animated: true)
-        }
+        // Sonuç ekranını göster
+        showResultScreen(with: game)
     }
     
-    @objc private func goToProfile() {
-        // Profil sayfasına yönlendir
-        dismiss(animated: true) { [weak self] in
-            self?.navigationController?.popToRootViewController(animated: true)
+    private func showResultScreen(with finalGame: MultiplayerGame) {
+        // Özel sonuç ekranı oluştur
+        let resultVC = UIViewController()
+        resultVC.view.backgroundColor = .systemBackground
+        resultVC.modalPresentationStyle = .fullScreen
+        
+        // Başlık etiketi
+        let titleLabel = UILabel()
+        titleLabel.text = "Online Quiz Bitti"
+        titleLabel.font = .systemFont(ofSize: 28, weight: .bold)
+        titleLabel.textAlignment = .center
+        titleLabel.textColor = .label
+        
+        // Sonuç container view
+        let resultContainer = UIView()
+        resultContainer.backgroundColor = .secondarySystemBackground
+        resultContainer.layer.cornerRadius = 16
+        
+        // Sonuç metni etiketi
+        let resultLabel = UILabel()
+        resultLabel.text = getGameResultMessage(from: finalGame)
+        resultLabel.numberOfLines = 0
+        resultLabel.font = .systemFont(ofSize: 18)
+        resultLabel.textColor = .label
+        
+        // Profile butonu
+        let profileButton = UIButton(type: .system)
+        profileButton.setTitle("Profili Görüntüle", for: .normal)
+        profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        profileButton.backgroundColor = .systemBlue
+        profileButton.setTitleColor(.white, for: .normal)
+        profileButton.layer.cornerRadius = 12
+        profileButton.addTarget(self, action: #selector(self.goToProfile), for: .touchUpInside)
+        
+        // View'ları ekle
+        [titleLabel, resultContainer, profileButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            resultVC.view.addSubview($0)
         }
+        
+        resultContainer.addSubview(resultLabel)
+        resultLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Constraint'leri ayarla
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.topAnchor, constant: 40),
+            titleLabel.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+            
+            resultContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
+            resultContainer.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
+            resultContainer.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+            
+            resultLabel.topAnchor.constraint(equalTo: resultContainer.topAnchor, constant: 20),
+            resultLabel.leadingAnchor.constraint(equalTo: resultContainer.leadingAnchor, constant: 20),
+            resultLabel.trailingAnchor.constraint(equalTo: resultContainer.trailingAnchor, constant: -20),
+            resultLabel.bottomAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: -20),
+            
+            profileButton.bottomAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
+            profileButton.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 40),
+            profileButton.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -40),
+            profileButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        present(resultVC, animated: true)
     }
     
-    private func getGameResultMessage() -> String {
+    private func getGameResultMessage(from finalGame: MultiplayerGame) -> String {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return "" }
         
         // Mevcut oyuncunun bilgileri
-        let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
-        let currentPlayer = game.playerScores[currentUserId]
-        let currentPlayerScore = currentPlayer?.score ?? 0
-        let currentPlayerCorrect = currentPlayer?.correctAnswers ?? 0
-        let currentPlayerWrong = currentPlayer?.wrongAnswers ?? 0
+        let currentPlayerName = currentUserId == finalGame.creatorId ? finalGame.creatorName : finalGame.invitedName
+        let currentPlayerStats = finalGame.playerScores[currentUserId]
+        let currentPlayerScore = currentPlayerStats?.score ?? 0
+        let currentPlayerCorrect = currentPlayerStats?.correctAnswers ?? 0
+        let currentPlayerWrong = currentPlayerStats?.wrongAnswers ?? 0
         
         // Rakip oyuncunun bilgileri
-        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
-        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
-        let opponent = game.playerScores[opponentId]
-        let opponentScore = opponent?.score ?? 0
-        let opponentCorrect = opponent?.correctAnswers ?? 0
-        let opponentWrong = opponent?.wrongAnswers ?? 0
+        let opponentId = finalGame.creatorId == currentUserId ? finalGame.invitedId : finalGame.creatorId
+        let opponentName = currentUserId == finalGame.creatorId ? finalGame.invitedName : finalGame.creatorName
+        let opponentStats = finalGame.playerScores[opponentId]
+        let opponentScore = opponentStats?.score ?? 0
+        let opponentCorrect = opponentStats?.correctAnswers ?? 0
+        let opponentWrong = opponentStats?.wrongAnswers ?? 0
         
         // Kazanan/Kaybeden durumunu belirle
         let resultStatus: String
@@ -606,5 +602,12 @@ class MultiplayerGameViewController: UIViewController {
         """
         
         return resultMessage
+    }
+    
+    @objc private func goToProfile() {
+        // Profil sayfasına yönlendir
+        dismiss(animated: true) { [weak self] in
+            self?.navigationController?.popToRootViewController(animated: true)
+        }
     }
 } 

@@ -587,4 +587,25 @@ class MultiplayerGameService {
                 completion(.success(answers))
             }
     }
+    
+    // Oyun verilerini getir
+    func getGame(gameId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        gameRef.getDocument { (document, error) in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let document = document,
+                  document.exists,
+                  let gameData = try? document.data(as: MultiplayerGame.self) else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Game not found"])))
+                return
+            }
+            
+            completion(.success(gameData))
+        }
+    }
 } 
