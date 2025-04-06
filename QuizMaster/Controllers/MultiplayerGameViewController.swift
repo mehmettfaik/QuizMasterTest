@@ -29,6 +29,14 @@ class MultiplayerGameViewController: UIViewController {
         return label
     }()
     
+    private let resultLabel: UILabel = {
+        let label = UILabel()
+        label.textAlignment = .center
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.isHidden = true
+        return label
+    }()
+    
     private lazy var answerStackView: UIStackView = {
         let stack = UIStackView()
         stack.axis = .vertical
@@ -40,6 +48,8 @@ class MultiplayerGameViewController: UIViewController {
     private var timer: Timer?
     private var timeLeft: Int = 5 // 5 seconds per question
     private var currentQuestion: Question?
+    private var hasAnswered: Bool = false
+    private var selectedAnswer: String?
     
     init(game: MultiplayerGame) {
         self.game = game
@@ -67,7 +77,7 @@ class MultiplayerGameViewController: UIViewController {
         title = "Multiplayer Quiz"
         view.backgroundColor = .systemBackground
         
-        [timerLabel, questionLabel, scoreLabel, answerStackView].forEach {
+        [timerLabel, questionLabel, scoreLabel, resultLabel, answerStackView].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -84,7 +94,11 @@ class MultiplayerGameViewController: UIViewController {
             questionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             questionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            answerStackView.topAnchor.constraint(equalTo: questionLabel.bottomAnchor, constant: 40),
+            resultLabel.topAnchor.constraint(equalTo: questionLabel.bottomAnchor, constant: 20),
+            resultLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            resultLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            answerStackView.topAnchor.constraint(equalTo: resultLabel.bottomAnchor, constant: 20),
             answerStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             answerStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
@@ -118,6 +132,10 @@ class MultiplayerGameViewController: UIViewController {
             endGame()
             return
         }
+        
+        hasAnswered = false
+        selectedAnswer = nil
+        resultLabel.isHidden = true
         
         let questionId = questions[index]
         multiplayerService.getQuestion(questionId: questionId) { [weak self] result in
@@ -165,7 +183,10 @@ class MultiplayerGameViewController: UIViewController {
             
             if self.timeLeft <= 0 {
                 self.timer?.invalidate()
-                self.handleTimeUp()
+                if !self.hasAnswered {
+                    self.handleTimeUp()
+                }
+                self.showAnswerResult()
             }
         }
     }
@@ -186,23 +207,70 @@ class MultiplayerGameViewController: UIViewController {
     @objc private func answerButtonTapped(_ button: UIButton) {
         guard let currentQuestion = currentQuestion,
               let answer = button.title(for: .normal),
-              let currentUserId = Auth.auth().currentUser?.uid else { return }
+              let currentUserId = Auth.auth().currentUser?.uid,
+              !hasAnswered else { return }
         
-        timer?.invalidate()
+        hasAnswered = true
+        selectedAnswer = answer
         
         let isCorrect = answer == currentQuestion.correctAnswer
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: isCorrect) { _ in }
         
         // Disable all buttons after answering
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+        
+        // Color the selected button
+        button.backgroundColor = isCorrect ? .systemGreen : .systemRed
+        
+        // If timer is still running, wait for it to finish
+        if timeLeft > 0 {
+            // Keep the timer running until it reaches 0
+            return
+        } else {
+            showAnswerResult()
+        }
     }
     
     private func handleTimeUp() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        hasAnswered = true
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
         
         // Disable all buttons after time is up
         answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+    }
+    
+    private func showAnswerResult() {
+        guard let currentQuestion = currentQuestion else { return }
+        
+        // Show the correct answer
+        answerStackView.arrangedSubviews.forEach { view in
+            guard let button = view as? UIButton,
+                  let buttonTitle = button.title(for: .normal) else { return }
+            
+            if buttonTitle == currentQuestion.correctAnswer {
+                button.backgroundColor = .systemGreen
+            } else if buttonTitle == selectedAnswer {
+                button.backgroundColor = .systemRed
+            }
+        }
+        
+        // Show result message
+        if let selectedAnswer = selectedAnswer {
+            let isCorrect = selectedAnswer == currentQuestion.correctAnswer
+            resultLabel.text = isCorrect ? "Correct! ✅" : "Wrong! ❌"
+            resultLabel.textColor = isCorrect ? .systemGreen : .systemRed
+        } else {
+            resultLabel.text = "Time's up! ⏰"
+            resultLabel.textColor = .systemRed
+        }
+        resultLabel.isHidden = false
+        
+        // Wait 2 seconds before moving to the next question
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self else { return }
+            self.multiplayerService.moveToNextQuestion(gameId: self.game.id) { _ in }
+        }
     }
     
     private func endGame() {

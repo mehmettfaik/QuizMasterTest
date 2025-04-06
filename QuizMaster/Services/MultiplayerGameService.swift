@@ -487,4 +487,36 @@ class MultiplayerGameService {
         
         attempt(remaining: maxAttempts)
     }
+    
+    func moveToNextQuestion(gameId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let gameRef = db.collection("multiplayer_games").document(gameId)
+        
+        // Get the current game data
+        gameRef.getDocument { [weak self] document, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let game = document.flatMap(MultiplayerGame.from) else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get game data"])))
+                return
+            }
+            
+            // Calculate next question index
+            let nextIndex = (game.currentQuestionIndex ?? 0) + 1
+            
+            // Update the game with the next question index
+            gameRef.updateData([
+                "current_question_index": nextIndex,
+                "last_updated": Timestamp(date: Date())
+            ]) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+        }
+    }
 } 
