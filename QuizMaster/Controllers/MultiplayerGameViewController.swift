@@ -213,8 +213,13 @@ class MultiplayerGameViewController: UIViewController {
         
         // Skor etiketlerini güncelle
         DispatchQueue.main.async {
+            // Mevcut oyuncunun skoru koyu renkte
             self.yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts (\(currentPlayerCorrect) ✓)"
+            self.yourScoreLabel.textColor = .label
+            
+            // Rakibin skoru daha açık renkte
             self.opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts (\(opponentCorrect) ✓)"
+            self.opponentScoreLabel.textColor = .secondaryLabel
         }
     }
     
@@ -531,14 +536,14 @@ class MultiplayerGameViewController: UIViewController {
         // Sonuç mesajını oluştur
         let resultMessage = """
             \(currentPlayerName)
-            Score: \(currentPlayerScore)
-            Correct: \(currentPlayerCorrect)
-            Wrong: \(currentPlayerWrong)
+            Score: \(currentPlayerScore) pts
+            Correct Answers: \(currentPlayerCorrect)
+            Wrong Answers: \(currentPlayerWrong)
             
             \(opponentName)
-            Score: \(opponentScore)
-            Correct: \(opponentCorrect)
-            Wrong: \(opponentWrong)
+            Score: \(opponentScore) pts
+            Correct Answers: \(opponentCorrect)
+            Wrong Answers: \(opponentWrong)
             """
         
         return resultMessage
