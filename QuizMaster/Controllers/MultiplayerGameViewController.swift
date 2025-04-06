@@ -112,7 +112,19 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func handleGameUpdate(_ updatedGame: MultiplayerGame) {
+        // Oyun tamamlandıysa sonuç ekranını göster
+        if updatedGame.status == .completed {
+            endGame()
+            return
+        }
+        
+        // Soru değiştiyse yeni soruyu yükle
         if updatedGame.currentQuestionIndex != game.currentQuestionIndex {
+            // Timer'ları temizle
+            timer?.invalidate()
+            nextQuestionTimer?.invalidate()
+            
+            // Yeni soruyu yükle
             loadQuestion(at: updatedGame.currentQuestionIndex)
         }
         
@@ -195,6 +207,9 @@ class MultiplayerGameViewController: UIViewController {
         
         showingCorrectAnswer = true
         
+        // Timer'ı durdur
+        timer?.invalidate()
+        
         answerStackView.arrangedSubviews.forEach { view in
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
@@ -207,6 +222,7 @@ class MultiplayerGameViewController: UIViewController {
         }
         
         // 2 saniye sonra bir sonraki soruya geç
+        nextQuestionTimer?.invalidate() // Önceki timer varsa temizle
         nextQuestionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
             self?.moveToNextQuestion()
         }
@@ -219,7 +235,13 @@ class MultiplayerGameViewController: UIViewController {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               game.creatorId == currentUserId else { return }
         
-        multiplayerService.moveToNextQuestion(gameId: game.id) { _ in }
+        // Eğer son soru ise oyunu bitir
+        if let questions = game.questions,
+           game.currentQuestionIndex >= questions.count - 1 {
+            multiplayerService.updateGameStatus(gameId: game.id, status: .completed) { _ in }
+        } else {
+            multiplayerService.moveToNextQuestion(gameId: game.id) { _ in }
+        }
     }
     
     private func startTimer() {
@@ -287,14 +309,51 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func endGame() {
+        // Timer'ları temizle
+        timer?.invalidate()
+        nextQuestionTimer?.invalidate()
+        
         DispatchQueue.main.async {
-            let alert = UIAlertController(title: "Game Over",
-                                        message: "The game has ended!",
-                                        preferredStyle: .alert)
+            // Oyun sonuç ekranını hazırla
+            let alert = UIAlertController(title: "Game Over", message: self.getGameResultMessage(), preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
                 self?.navigationController?.popToRootViewController(animated: true)
             })
             self.present(alert, animated: true)
         }
+    }
+    
+    private func getGameResultMessage() -> String {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return "Game completed!" }
+        
+        let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
+        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
+        let opponentScore = game.playerScores[opponentId]?.score ?? 0
+        
+        let currentPlayerCorrect = game.playerScores[currentUserId]?.correctAnswers ?? 0
+        let currentPlayerWrong = game.playerScores[currentUserId]?.wrongAnswers ?? 0
+        let opponentCorrect = game.playerScores[opponentId]?.correctAnswers ?? 0
+        let opponentWrong = game.playerScores[opponentId]?.wrongAnswers ?? 0
+        
+        let result: String
+        if currentPlayerScore > opponentScore {
+            result = "You won! 🎉"
+        } else if currentPlayerScore < opponentScore {
+            result = "You lost! 😔"
+        } else {
+            result = "It's a tie! 🤝"
+        }
+        
+        return """
+            \(result)
+            
+            Your Score: \(currentPlayerScore)
+            Correct Answers: \(currentPlayerCorrect)
+            Wrong Answers: \(currentPlayerWrong)
+            
+            Opponent Score: \(opponentScore)
+            Correct Answers: \(opponentCorrect)
+            Wrong Answers: \(opponentWrong)
+            """
     }
 } 
