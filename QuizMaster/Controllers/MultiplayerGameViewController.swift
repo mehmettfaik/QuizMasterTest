@@ -487,8 +487,22 @@ class MultiplayerGameViewController: UIViewController {
         timer?.invalidate()
         nextQuestionTimer?.invalidate()
         
-        // Sonuç ekranını göster
-        showResultScreen(with: game)
+        // Firestore'dan en güncel oyun verilerini al
+        multiplayerService.getGame(gameId: game.id) { [weak self] result in
+            switch result {
+            case .success(let finalGame):
+                DispatchQueue.main.async {
+                    self?.showResultScreen(with: finalGame)
+                }
+            case .failure(let error):
+                print("Error fetching final game data: \(error.localizedDescription)")
+                // Hata durumunda mevcut game verisiyle devam et
+                DispatchQueue.main.async {
+                    guard let currentGame = self?.game else { return }
+                    self?.showResultScreen(with: currentGame)
+                }
+            }
+        }
     }
     
     private func showResultScreen(with finalGame: MultiplayerGame) {
@@ -511,7 +525,7 @@ class MultiplayerGameViewController: UIViewController {
         
         // Sonuç metni etiketi
         let resultLabel = UILabel()
-        resultLabel.text = getGameResultMessage(from: finalGame)
+        resultLabel.attributedText = getFormattedGameResultMessage(from: finalGame)
         resultLabel.numberOfLines = 0
         resultLabel.font = .systemFont(ofSize: 18)
         resultLabel.textColor = .label
@@ -558,8 +572,26 @@ class MultiplayerGameViewController: UIViewController {
         present(resultVC, animated: true)
     }
     
-    private func getGameResultMessage(from finalGame: MultiplayerGame) -> String {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return "" }
+    private func getFormattedGameResultMessage(from finalGame: MultiplayerGame) -> NSAttributedString {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return NSAttributedString() }
+        
+        let resultText = NSMutableAttributedString()
+        
+        // Stil tanımlamaları
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 24, weight: .bold),
+            .foregroundColor: UIColor.label
+        ]
+        
+        let playerNameAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 20, weight: .bold),
+            .foregroundColor: UIColor.label
+        ]
+        
+        let statsAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 18, weight: .regular),
+            .foregroundColor: UIColor.label
+        ]
         
         // Mevcut oyuncunun bilgileri
         let currentPlayerName = currentUserId == finalGame.creatorId ? finalGame.creatorName : finalGame.invitedName
@@ -586,22 +618,22 @@ class MultiplayerGameViewController: UIViewController {
             resultStatus = "🤝 Berabere kaldınız!"
         }
         
-        // Sonuç mesajını oluştur
-        let resultMessage = """
-        \(resultStatus)
+        // Sonuç metnini oluştur
+        resultText.append(NSAttributedString(string: resultStatus + "\n\n", attributes: titleAttributes))
         
-        \(currentPlayerName.uppercased())
-        ▸ Puan: \(currentPlayerScore) pts
-        ▸ Doğru: \(currentPlayerCorrect)
-        ▸ Yanlış: \(currentPlayerWrong)
+        // Mevcut oyuncu bilgileri
+        resultText.append(NSAttributedString(string: currentPlayerName.uppercased() + "\n", attributes: playerNameAttributes))
+        resultText.append(NSAttributedString(string: "▸ Puan: \(currentPlayerScore) pts\n", attributes: statsAttributes))
+        resultText.append(NSAttributedString(string: "▸ Doğru: \(currentPlayerCorrect)\n", attributes: statsAttributes))
+        resultText.append(NSAttributedString(string: "▸ Yanlış: \(currentPlayerWrong)\n\n", attributes: statsAttributes))
         
-        \(opponentName.uppercased())
-        ▸ Puan: \(opponentScore) pts
-        ▸ Doğru: \(opponentCorrect)
-        ▸ Yanlış: \(opponentWrong)
-        """
+        // Rakip oyuncu bilgileri
+        resultText.append(NSAttributedString(string: opponentName.uppercased() + "\n", attributes: playerNameAttributes))
+        resultText.append(NSAttributedString(string: "▸ Puan: \(opponentScore) pts\n", attributes: statsAttributes))
+        resultText.append(NSAttributedString(string: "▸ Doğru: \(opponentCorrect)\n", attributes: statsAttributes))
+        resultText.append(NSAttributedString(string: "▸ Yanlış: \(opponentWrong)", attributes: statsAttributes))
         
-        return resultMessage
+        return resultText
     }
     
     @objc private func goToProfile() {
