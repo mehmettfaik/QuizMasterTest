@@ -165,6 +165,18 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func handleGameUpdate(_ updatedGame: MultiplayerGame) {
+        // Oyun verilerini güncelle
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            // Puanları güncelle
+            let currentPlayerScore = updatedGame.playerScores[currentUserId]?.score ?? 0
+            let opponentId = updatedGame.creatorId == currentUserId ? updatedGame.invitedId : updatedGame.creatorId
+            let opponentScore = updatedGame.playerScores[opponentId]?.score ?? 0
+            
+            DispatchQueue.main.async {
+                self.updateScoreLabel(with: updatedGame)
+            }
+        }
+        
         // Oyun tamamlandıysa sonuç ekranını göster
         if updatedGame.status == .completed {
             endGame()
@@ -180,9 +192,29 @@ class MultiplayerGameViewController: UIViewController {
             // Yeni soruyu yükle
             loadQuestion(at: updatedGame.currentQuestionIndex)
         }
+    }
+    
+    private func updateScoreLabel(with updatedGame: MultiplayerGame? = nil) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let gameToUse = updatedGame ?? game
         
+        // Mevcut oyuncunun bilgileri
+        let currentPlayerScore = gameToUse.playerScores[currentUserId]?.score ?? 0
+        let currentPlayerCorrect = gameToUse.playerScores[currentUserId]?.correctAnswers ?? 0
+        
+        // Rakip oyuncunun bilgileri
+        let opponentId = gameToUse.creatorId == currentUserId ? gameToUse.invitedId : gameToUse.creatorId
+        let opponentScore = gameToUse.playerScores[opponentId]?.score ?? 0
+        let opponentCorrect = gameToUse.playerScores[opponentId]?.correctAnswers ?? 0
+        
+        // Kullanıcı isimlerini belirle
+        let currentPlayerName = currentUserId == gameToUse.creatorId ? gameToUse.creatorName : gameToUse.invitedName
+        let opponentName = currentUserId == gameToUse.creatorId ? gameToUse.invitedName : gameToUse.creatorName
+        
+        // Skor etiketlerini güncelle
         DispatchQueue.main.async {
-            self.updateScoreLabel()
+            self.yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts (\(currentPlayerCorrect) ✓)"
+            self.opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts (\(opponentCorrect) ✓)"
         }
     }
     
@@ -327,27 +359,6 @@ class MultiplayerGameViewController: UIViewController {
     
     private func updateTimerLabel() {
         timerLabel.text = "Time: \(timeLeft)s"
-    }
-    
-    private func updateScoreLabel() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        // Mevcut oyuncunun bilgileri
-        let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
-        let currentPlayerCorrect = game.playerScores[currentUserId]?.correctAnswers ?? 0
-        
-        // Rakip oyuncunun bilgileri
-        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
-        let opponentScore = game.playerScores[opponentId]?.score ?? 0
-        let opponentCorrect = game.playerScores[opponentId]?.correctAnswers ?? 0
-        
-        // Kullanıcı isimlerini belirle
-        let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
-        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
-        
-        // Skor etiketlerini güncelle
-        yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts (\(currentPlayerCorrect) ✓)"
-        opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts (\(opponentCorrect) ✓)"
     }
     
     private func animateScoreChange(for label: UILabel, from oldScore: Int, to newScore: Int) {

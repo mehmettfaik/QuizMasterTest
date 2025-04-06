@@ -93,51 +93,64 @@ class MultiplayerGameService {
     }
     
     private func createNewGameInvitation(currentUserId: String, invitedUserId: String, completion: @escaping (Result<MultiplayerGame, Error>) -> Void) {
-        // Get user names for better identification
         let batch = db.batch()
         let gameRef = db.collection("multiplayer_games").document()
         
-        // Get creator's name
-        db.collection("users").document(currentUserId).getDocument { [weak self] creatorDoc, error in
-            guard let self = self else { return }
-            
-            let creatorName = creatorDoc?.data()?["username"] as? String ?? "Unknown"
-            
-            // Get invited user's name
-            self.db.collection("users").document(invitedUserId).getDocument { invitedDoc, error in
-                let invitedName = invitedDoc?.data()?["username"] as? String ?? "Unknown"
-                
-                let gameData: [String: Any] = [
-                    "creator_id": currentUserId,
-                    "creator_name": creatorName,
-                    "invited_id": invitedUserId,
-                    "invited_name": invitedName,
-                    "status": GameStatus.pending.rawValue,
-                    "created_at": Timestamp(date: Date()),
-                    "current_question_index": 0,
-                    "player_scores": [
-                        currentUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0],
-                        invitedUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
-                    ]
+        // Önce her iki kullanıcının isimlerini al
+        let dispatchGroup = DispatchGroup()
+        var creatorName = "Unknown"
+        var invitedName = "Unknown"
+        
+        // Creator'ın ismini al
+        dispatchGroup.enter()
+        db.collection("users").document(currentUserId).getDocument { document, error in
+            if let document = document, let name = document.data()?["name"] as? String {
+                creatorName = name
+            }
+            dispatchGroup.leave()
+        }
+        
+        // Invited kullanıcının ismini al
+        dispatchGroup.enter()
+        db.collection("users").document(invitedUserId).getDocument { document, error in
+            if let document = document, let name = document.data()?["name"] as? String {
+                invitedName = name
+            }
+            dispatchGroup.leave()
+        }
+        
+        // Her iki isim de alındıktan sonra oyunu oluştur
+        dispatchGroup.notify(queue: .main) {
+            let gameData: [String: Any] = [
+                "creator_id": currentUserId,
+                "creator_name": creatorName,
+                "invited_id": invitedUserId,
+                "invited_name": invitedName,
+                "status": GameStatus.pending.rawValue,
+                "created_at": Timestamp(date: Date()),
+                "current_question_index": 0,
+                "player_scores": [
+                    currentUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0],
+                    invitedUserId: ["score": 0, "correct_answers": 0, "wrong_answers": 0]
                 ]
+            ]
+            
+            gameRef.setData(gameData) { error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
                 
-                gameRef.setData(gameData) { error in
+                gameRef.getDocument { document, error in
                     if let error = error {
                         completion(.failure(error))
                         return
                     }
                     
-                    gameRef.getDocument { document, error in
-                        if let error = error {
-                            completion(.failure(error))
-                            return
-                        }
-                        
-                        if let game = document.flatMap(MultiplayerGame.from) {
-                            completion(.success(game))
-                        } else {
-                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create game"])))
-                        }
+                    if let game = document.flatMap(MultiplayerGame.from) {
+                        completion(.success(game))
+                    } else {
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create game"])))
                     }
                 }
             }
@@ -393,17 +406,12 @@ class MultiplayerGameService {
             "timestamp": Timestamp(date: Date())
         ]
         
-        answerRef.setData(answerData) { error in
-            if let error = error {
-                completion(.failure(error))
-            } else {
-                // Update player score
-                self.updatePlayerScore(gameId: gameId, userId: userId, isCorrect: isCorrect, completion: completion)
-            }
-        }
-    }
-    
-    private func updatePlayerScore(gameId: String, userId: String, isCorrect: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        let batch = db.batch()
+        
+        // Cevabı kaydet
+        batch.setData(answerData, forDocument: answerRef)
+        
+        // Oyun dokümanını al ve puanı güncelle
         let gameRef = db.collection("multiplayer_games").document(gameId)
         
         gameRef.getDocument { [weak self] document, error in
@@ -418,28 +426,30 @@ class MultiplayerGameService {
                 return
             }
             
-            // Update player's score
-            if var playerScore = playerScores[userId] {
-                let currentScore = playerScore["score"] as? Int ?? 0
-                let correctAnswers = playerScore["correct_answers"] as? Int ?? 0
-                let wrongAnswers = playerScore["wrong_answers"] as? Int ?? 0
-                
-                if isCorrect {
-                    playerScore["score"] = currentScore + 10
-                    playerScore["correct_answers"] = correctAnswers + 1
+            // Mevcut puanları al
+            var playerScore = playerScores[userId] ?? ["score": 0, "correct_answers": 0, "wrong_answers": 0]
+            let currentScore = playerScore["score"] as? Int ?? 0
+            let correctAnswers = playerScore["correct_answers"] as? Int ?? 0
+            let wrongAnswers = playerScore["wrong_answers"] as? Int ?? 0
+            
+            // Puanları güncelle
+            if isCorrect {
+                playerScore["score"] = currentScore + 10
+                playerScore["correct_answers"] = correctAnswers + 1
+            } else {
+                playerScore["wrong_answers"] = wrongAnswers + 1
+            }
+            
+            // Güncellenmiş puanları kaydet
+            playerScores[userId] = playerScore
+            batch.updateData(["player_scores": playerScores], forDocument: gameRef)
+            
+            // Batch'i commit et
+            batch.commit { error in
+                if let error = error {
+                    completion(.failure(error))
                 } else {
-                    playerScore["wrong_answers"] = wrongAnswers + 1
-                }
-                
-                playerScores[userId] = playerScore
-                
-                // Update the game document with new scores
-                gameRef.updateData(["player_scores": playerScores]) { error in
-                    if let error = error {
-                        completion(.failure(error))
-                    } else {
-                        completion(.success(()))
-                    }
+                    completion(.success(()))
                 }
             }
         }
