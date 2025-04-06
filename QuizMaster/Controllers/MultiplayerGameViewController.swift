@@ -44,6 +44,7 @@ class MultiplayerGameViewController: UIViewController {
         label.textAlignment = .center
         label.font = .systemFont(ofSize: 20, weight: .bold)
         label.textColor = .label
+        label.numberOfLines = 2
         return label
     }()
     
@@ -52,6 +53,16 @@ class MultiplayerGameViewController: UIViewController {
         label.textAlignment = .center
         label.font = .systemFont(ofSize: 20, weight: .bold)
         label.textColor = .secondaryLabel
+        label.numberOfLines = 2
+        return label
+    }()
+    
+    private let vsLabel: UILabel = {
+        let label = UILabel()
+        label.text = "vs"
+        label.textAlignment = .center
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.textColor = .systemGray
         return label
     }()
     
@@ -106,6 +117,7 @@ class MultiplayerGameViewController: UIViewController {
         // Score view setup
         scoreView.addSubview(scoreStackView)
         scoreStackView.addArrangedSubview(yourScoreLabel)
+        scoreStackView.addArrangedSubview(vsLabel)
         scoreStackView.addArrangedSubview(opponentScoreLabel)
         
         [timerLabel, scoreView, questionLabel, answerStackView].forEach {
@@ -323,8 +335,12 @@ class MultiplayerGameViewController: UIViewController {
         let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
         let opponentScore = game.playerScores[opponentId]?.score ?? 0
         
-        yourScoreLabel.text = "You\n\(currentPlayerScore)"
-        opponentScoreLabel.text = "Opponent\n\(opponentScore)"
+        // Kullanıcı isimlerini belirle
+        let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
+        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
+        
+        yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts"
+        opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts"
     }
     
     private func animateScoreChange(for label: UILabel, from oldScore: Int, to newScore: Int) {
@@ -423,7 +439,7 @@ class MultiplayerGameViewController: UIViewController {
         selectedButton = nil
         
         // Tüm butonları devre dışı bırak
-        answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
+        self.answerStackView.arrangedSubviews.forEach { ($0 as? UIButton)?.isEnabled = false }
         
         // Doğru cevabı göster
         showCorrectAnswer()
@@ -435,35 +451,10 @@ class MultiplayerGameViewController: UIViewController {
         nextQuestionTimer?.invalidate()
         
         DispatchQueue.main.async {
-            // Özel tasarlanmış sonuç ekranını göster
-            let resultVC = UIAlertController(title: "Game Over", message: "", preferredStyle: .alert)
-            
-            // Özel görünüm oluştur
-            let resultView = UIView(frame: CGRect(x: 0, y: 0, width: 270, height: 200))
-            
-            let titleLabel = UILabel(frame: CGRect(x: 0, y: 0, width: 270, height: 30))
-            titleLabel.text = self.getGameResultTitle()
-            titleLabel.textAlignment = .center
-            titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
-            
-            let scoreStackView = UIStackView(frame: CGRect(x: 20, y: 40, width: 230, height: 140))
-            scoreStackView.axis = .vertical
-            scoreStackView.distribution = .fillEqually
-            scoreStackView.spacing = 10
-            
-            let scores = self.getDetailedScores()
-            scores.forEach { scoreText in
-                let label = UILabel()
-                label.text = scoreText
-                label.textAlignment = .center
-                label.numberOfLines = 0
-                scoreStackView.addArrangedSubview(label)
-            }
-            
-            resultView.addSubview(titleLabel)
-            resultView.addSubview(scoreStackView)
-            
-            resultVC.setValue(resultView, forKey: "contentView")
+            // Sonuç ekranını göster
+            let resultVC = UIAlertController(title: self.getGameResultTitle(), 
+                                           message: self.getGameResultMessage(),
+                                           preferredStyle: .alert)
             
             resultVC.addAction(UIAlertAction(title: "Return to Home", style: .default) { [weak self] _ in
                 self?.navigationController?.popToRootViewController(animated: true)
@@ -489,16 +480,26 @@ class MultiplayerGameViewController: UIViewController {
         }
     }
     
-    private func getDetailedScores() -> [String] {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return [] }
+    private func getGameResultMessage() -> String {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return "" }
         
         let currentPlayer = game.playerScores[currentUserId]
         let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
         let opponent = game.playerScores[opponentId]
         
-        return [
-            "Your Score: \(currentPlayer?.score ?? 0)\nCorrect: \(currentPlayer?.correctAnswers ?? 0)\nWrong: \(currentPlayer?.wrongAnswers ?? 0)",
-            "Opponent Score: \(opponent?.score ?? 0)\nCorrect: \(opponent?.correctAnswers ?? 0)\nWrong: \(opponent?.wrongAnswers ?? 0)"
-        ]
+        let currentPlayerName = currentUserId == game.creatorId ? game.creatorName : game.invitedName
+        let opponentName = currentUserId == game.creatorId ? game.invitedName : game.creatorName
+        
+        return """
+            \(currentPlayerName)
+            Score: \(currentPlayer?.score ?? 0)
+            Correct: \(currentPlayer?.correctAnswers ?? 0)
+            Wrong: \(currentPlayer?.wrongAnswers ?? 0)
+            
+            \(opponentName)
+            Score: \(opponent?.score ?? 0)
+            Correct: \(opponent?.correctAnswers ?? 0)
+            Wrong: \(opponent?.wrongAnswers ?? 0)
+            """
     }
 } 
