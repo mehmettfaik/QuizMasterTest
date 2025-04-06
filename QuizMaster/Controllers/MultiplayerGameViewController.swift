@@ -488,44 +488,77 @@ class MultiplayerGameViewController: UIViewController {
         nextQuestionTimer?.invalidate()
         
         DispatchQueue.main.async {
-            // Sonuç ekranını göster
-            let resultVC = UIAlertController(
-                title: self.getGameResultTitle(),
-                message: self.getGameResultMessage(),
-                preferredStyle: .alert
-            )
+            // Özel sonuç ekranı oluştur
+            let resultVC = UIViewController()
+            resultVC.view.backgroundColor = .systemBackground
+            resultVC.modalPresentationStyle = .fullScreen
             
-            // "Return to Home" butonu ekle
-            resultVC.addAction(UIAlertAction(
-                title: "Return to Home",
-                style: .default
-            ) { [weak self] _ in
-                self?.navigationController?.popToRootViewController(animated: true)
-            })
+            // Başlık etiketi
+            let titleLabel = UILabel()
+            titleLabel.text = "Online Quiz Bitti"
+            titleLabel.font = .systemFont(ofSize: 28, weight: .bold)
+            titleLabel.textAlignment = .center
+            titleLabel.textColor = .label
             
-            // Mesaj metninin görünümünü özelleştir
-            if let messageLabel = resultVC.view.subviews.first?.subviews.first?.subviews.first?.subviews[1] as? UILabel {
-                messageLabel.textAlignment = .left
-                messageLabel.numberOfLines = 0
+            // Sonuç container view
+            let resultContainer = UIView()
+            resultContainer.backgroundColor = .secondarySystemBackground
+            resultContainer.layer.cornerRadius = 16
+            
+            // Sonuç metni etiketi
+            let resultLabel = UILabel()
+            resultLabel.text = self.getGameResultMessage()
+            resultLabel.numberOfLines = 0
+            resultLabel.font = .systemFont(ofSize: 18)
+            resultLabel.textColor = .label
+            
+            // Profile butonu
+            let profileButton = UIButton(type: .system)
+            profileButton.setTitle("Profili Görüntüle", for: .normal)
+            profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+            profileButton.backgroundColor = .systemBlue
+            profileButton.setTitleColor(.white, for: .normal)
+            profileButton.layer.cornerRadius = 12
+            profileButton.addTarget(self, action: #selector(self.goToProfile), for: .touchUpInside)
+            
+            // View'ları ekle
+            [titleLabel, resultContainer, profileButton].forEach {
+                $0.translatesAutoresizingMaskIntoConstraints = false
+                resultVC.view.addSubview($0)
             }
+            
+            resultContainer.addSubview(resultLabel)
+            resultLabel.translatesAutoresizingMaskIntoConstraints = false
+            
+            // Constraint'leri ayarla
+            NSLayoutConstraint.activate([
+                titleLabel.topAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.topAnchor, constant: 40),
+                titleLabel.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
+                titleLabel.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+                
+                resultContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
+                resultContainer.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
+                resultContainer.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+                
+                resultLabel.topAnchor.constraint(equalTo: resultContainer.topAnchor, constant: 20),
+                resultLabel.leadingAnchor.constraint(equalTo: resultContainer.leadingAnchor, constant: 20),
+                resultLabel.trailingAnchor.constraint(equalTo: resultContainer.trailingAnchor, constant: -20),
+                resultLabel.bottomAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: -20),
+                
+                profileButton.bottomAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
+                profileButton.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 40),
+                profileButton.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -40),
+                profileButton.heightAnchor.constraint(equalToConstant: 50)
+            ])
             
             self.present(resultVC, animated: true)
         }
     }
     
-    private func getGameResultTitle() -> String {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return "Game Over!" }
-        
-        let currentPlayerScore = game.playerScores[currentUserId]?.score ?? 0
-        let opponentId = game.creatorId == currentUserId ? game.invitedId : game.creatorId
-        let opponentScore = game.playerScores[opponentId]?.score ?? 0
-        
-        if currentPlayerScore > opponentScore {
-            return "You Won! 🎉"
-        } else if currentPlayerScore < opponentScore {
-            return "You Lost! 😔"
-        } else {
-            return "It's a Tie! 🤝"
+    @objc private func goToProfile() {
+        // Profil sayfasına yönlendir
+        dismiss(animated: true) { [weak self] in
+            self?.navigationController?.popToRootViewController(animated: true)
         }
     }
     
@@ -547,18 +580,30 @@ class MultiplayerGameViewController: UIViewController {
         let opponentCorrect = opponent?.correctAnswers ?? 0
         let opponentWrong = opponent?.wrongAnswers ?? 0
         
+        // Kazanan/Kaybeden durumunu belirle
+        let resultStatus: String
+        if currentPlayerScore > opponentScore {
+            resultStatus = "🎉 Tebrikler! Kazandınız!"
+        } else if currentPlayerScore < opponentScore {
+            resultStatus = "😔 Maalesef kaybettiniz."
+        } else {
+            resultStatus = "🤝 Berabere kaldınız!"
+        }
+        
         // Sonuç mesajını oluştur
         let resultMessage = """
-            \(currentPlayerName)
-            Score: \(currentPlayerScore) pts
-            Correct Answers: \(currentPlayerCorrect)
-            Wrong Answers: \(currentPlayerWrong)
-            
-            \(opponentName)
-            Score: \(opponentScore) pts
-            Correct Answers: \(opponentCorrect)
-            Wrong Answers: \(opponentWrong)
-            """
+        \(resultStatus)
+        
+        \(currentPlayerName.uppercased())
+        ▸ Puan: \(currentPlayerScore) pts
+        ▸ Doğru: \(currentPlayerCorrect)
+        ▸ Yanlış: \(currentPlayerWrong)
+        
+        \(opponentName.uppercased())
+        ▸ Puan: \(opponentScore) pts
+        ▸ Doğru: \(opponentCorrect)
+        ▸ Yanlış: \(opponentWrong)
+        """
         
         return resultMessage
     }
