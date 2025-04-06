@@ -42,26 +42,30 @@ class MultiplayerGameViewController: UIViewController {
     private let yourScoreLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.font = .systemFont(ofSize: 16, weight: .bold)
         label.textColor = .label
-        label.numberOfLines = 2
+        label.numberOfLines = 0
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.5
         return label
     }()
     
     private let opponentScoreLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.font = .systemFont(ofSize: 16, weight: .bold)
         label.textColor = .secondaryLabel
-        label.numberOfLines = 2
+        label.numberOfLines = 0
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.5
         return label
     }()
     
     private let vsLabel: UILabel = {
         let label = UILabel()
-        label.text = "vs"
+        label.text = "VS"
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.font = .systemFont(ofSize: 14, weight: .medium)
         label.textColor = .systemGray
         return label
     }()
@@ -134,12 +138,14 @@ class MultiplayerGameViewController: UIViewController {
             scoreView.topAnchor.constraint(equalTo: timerLabel.bottomAnchor, constant: 20),
             scoreView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             scoreView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            scoreView.heightAnchor.constraint(equalToConstant: 80),
+            scoreView.heightAnchor.constraint(equalToConstant: 100),
             
-            scoreStackView.leadingAnchor.constraint(equalTo: scoreView.leadingAnchor, constant: 16),
-            scoreStackView.trailingAnchor.constraint(equalTo: scoreView.trailingAnchor, constant: -16),
-            scoreStackView.topAnchor.constraint(equalTo: scoreView.topAnchor),
-            scoreStackView.bottomAnchor.constraint(equalTo: scoreView.bottomAnchor),
+            scoreStackView.leadingAnchor.constraint(equalTo: scoreView.leadingAnchor, constant: 20),
+            scoreStackView.trailingAnchor.constraint(equalTo: scoreView.trailingAnchor, constant: -20),
+            scoreStackView.topAnchor.constraint(equalTo: scoreView.topAnchor, constant: 10),
+            scoreStackView.bottomAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: -10),
+            
+            vsLabel.widthAnchor.constraint(equalToConstant: 40),
             
             questionLabel.topAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: 40),
             questionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
@@ -213,12 +219,20 @@ class MultiplayerGameViewController: UIViewController {
         
         // Skor etiketlerini güncelle
         DispatchQueue.main.async {
-            // Mevcut oyuncunun skoru koyu renkte
-            self.yourScoreLabel.text = "\(currentPlayerName)\n\(currentPlayerScore) pts (\(currentPlayerCorrect) ✓)"
+            // Mevcut oyuncunun skoru
+            let currentPlayerText = """
+                \(currentPlayerName)
+                \(currentPlayerScore) pts
+                """
+            self.yourScoreLabel.text = currentPlayerText
             self.yourScoreLabel.textColor = .label
             
-            // Rakibin skoru daha açık renkte
-            self.opponentScoreLabel.text = "\(opponentName)\n\(opponentScore) pts (\(opponentCorrect) ✓)"
+            // Rakibin skoru
+            let opponentText = """
+                \(opponentName)
+                \(opponentScore) pts
+                """
+            self.opponentScoreLabel.text = opponentText
             self.opponentScoreLabel.textColor = .secondaryLabel
         }
     }
