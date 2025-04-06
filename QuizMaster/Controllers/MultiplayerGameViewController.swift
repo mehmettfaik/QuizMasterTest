@@ -162,12 +162,17 @@ class MultiplayerGameViewController: UIViewController {
             case .showing_result:
                 self.showAnswerResult()
                 
-            case .transitioning:
-                // 2 saniye sonra bir sonraki soruya geç
+                // Oyun yaratıcısı 2 saniye sonra geçiş fazını başlatır
                 if self.game.creatorId == Auth.auth().currentUser?.uid {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.startNewQuestion(at: state.questionIndex + 1)
+                        self.multiplayerService.moveToTransitionPhase(gameId: self.game.id) { _ in }
                     }
+                }
+                
+            case .transitioning:
+                // Oyun yaratıcısı hemen yeni soruyu başlatır
+                if self.game.creatorId == Auth.auth().currentUser?.uid {
+                    self.startNewQuestion(at: state.questionIndex + 1)
                 }
             }
         }
@@ -313,11 +318,6 @@ class MultiplayerGameViewController: UIViewController {
             resultLabel.textColor = .systemRed
         }
         resultLabel.isHidden = false
-        
-        // Oyun yaratıcısı geçiş fazını başlatır
-        if game.creatorId == Auth.auth().currentUser?.uid {
-            multiplayerService.moveToTransitionPhase(gameId: game.id) { _ in }
-        }
     }
     
     private func endGame() {
