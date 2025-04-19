@@ -195,7 +195,6 @@ class MultiplayerGameViewController: UIViewController {
     private func handleGameUpdate(_ updatedGame: MultiplayerGame) {
         // Oyun verilerini güncelle
         if let currentUserId = Auth.auth().currentUser?.uid {
-            // Puanları güncelle
             let currentPlayerScore = updatedGame.playerScores[currentUserId]?.score ?? 0
             let opponentId = updatedGame.creatorId == currentUserId ? updatedGame.invitedId : updatedGame.creatorId
             let opponentScore = updatedGame.playerScores[opponentId]?.score ?? 0
@@ -212,16 +211,19 @@ class MultiplayerGameViewController: UIViewController {
         }
         
         // Soru değiştiyse yeni soruyu yükle
-        if updatedGame.currentQuestionIndex != game.currentQuestionIndex && !waitingForNextQuestion {
+        if updatedGame.currentQuestionIndex != game.currentQuestionIndex {
             // Timer'ları temizle
             timer?.invalidate()
             nextQuestionTimer?.invalidate()
             
+            // Game referansını güncelle
+            self.game = updatedGame
+            
             // Yeni soruyu yükle
             loadQuestion(at: updatedGame.currentQuestionIndex)
             
-            // Game referansını güncelle
-            self.game = updatedGame
+            // Bekleme durumunu sıfırla
+            waitingForNextQuestion = false
         }
     }
     
@@ -328,14 +330,13 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func checkIfBothPlayersAnswered(_ answers: [String: Bool]) {
-        guard !bothPlayersAnswered else { return }
+        guard !bothPlayersAnswered,
+              !showingCorrectAnswer else { return }
         
         if answers.count == 2 {
             bothPlayersAnswered = true
-            DispatchQueue.main.async {
-                if !self.showingCorrectAnswer {
-                    self.showCorrectAnswer()
-                }
+            DispatchQueue.main.async { [weak self] in
+                self?.showCorrectAnswer()
             }
         }
     }
@@ -353,13 +354,9 @@ class MultiplayerGameViewController: UIViewController {
             guard let button = view as? UIButton,
                   let buttonTitle = button.title(for: .normal) else { return }
             
-            // Seçili butonun vurgusunu kaldır
-            button.layer.borderWidth = 0
-            
             if buttonTitle == currentQuestion.correctAnswer {
                 button.backgroundColor = .systemGreen
             } else {
-                // Eğer bu buton seçilmişse ve yanlışsa, kırmızı yap
                 if button == selectedButton {
                     button.backgroundColor = .systemRed
                 } else {
@@ -369,9 +366,14 @@ class MultiplayerGameViewController: UIViewController {
         }
         
         // 2 saniye sonra bir sonraki soruya geç
-        nextQuestionTimer?.invalidate() // Önceki timer varsa temizle
+        nextQuestionTimer?.invalidate()
         nextQuestionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
-            self?.moveToNextQuestion()
+            guard let self = self else { return }
+            
+            // Eğer oyunu oluşturan kullanıcı isek ve henüz bekleme durumunda değilsek
+            if self.game.creatorId == Auth.auth().currentUser?.uid && !self.waitingForNextQuestion {
+                self.moveToNextQuestion()
+            }
         }
     }
     
@@ -379,15 +381,29 @@ class MultiplayerGameViewController: UIViewController {
         guard !waitingForNextQuestion else { return }
         waitingForNextQuestion = true
         
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              game.creatorId == currentUserId else { return }
-        
         // Eğer son soru ise oyunu bitir
         if let questions = game.questions,
            game.currentQuestionIndex >= questions.count - 1 {
-            multiplayerService.updateGameStatus(gameId: game.id, status: .completed) { _ in }
+            multiplayerService.updateGameStatus(gameId: game.id, status: .completed) { [weak self] result in
+                switch result {
+                case .success:
+                    print("✅ Game completed successfully")
+                case .failure(let error):
+                    print("❌ Error completing game: \(error.localizedDescription)")
+                    self?.waitingForNextQuestion = false
+                }
+            }
         } else {
-            multiplayerService.moveToNextQuestion(gameId: game.id) { _ in }
+            // Sonraki soruya geç
+            multiplayerService.moveToNextQuestion(gameId: game.id) { [weak self] result in
+                switch result {
+                case .success:
+                    print("✅ Moved to next question successfully")
+                case .failure(let error):
+                    print("❌ Error moving to next question: \(error.localizedDescription)")
+                    self?.waitingForNextQuestion = false
+                }
+            }
         }
     }
     
@@ -476,7 +492,6 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     @objc private func answerButtonTapped(_ button: UIButton) {
-        // Eğer zaten bir cevap verilmişse veya soru gösteriliyorsa, hiçbir şey yapma
         guard let currentQuestion = currentQuestion,
               let answer = button.title(for: .normal),
               let currentUserId = Auth.auth().currentUser?.uid,
@@ -485,21 +500,14 @@ class MultiplayerGameViewController: UIViewController {
             return
         }
         
-        // Cevap verildiğini işaretle
         hasAnsweredCurrentQuestion = true
         selectedButton = button
         
-        // Seçilen butonu vurgula
         button.backgroundColor = .systemIndigo
         
-        // TÜM butonları devre dışı bırak ve görünümlerini güncelle
         answerStackView.arrangedSubviews.forEach { view in
             guard let otherButton = view as? UIButton else { return }
-            
-            // Tüm butonların user interaction'ını devre dışı bırak
             otherButton.isUserInteractionEnabled = false
-            
-            // Seçilmeyen butonların görünümünü güncelle
             if otherButton != button {
                 otherButton.alpha = 0.5
                 otherButton.backgroundColor = .systemGray
@@ -508,20 +516,20 @@ class MultiplayerGameViewController: UIViewController {
         
         let isCorrect = answer == currentQuestion.correctAnswer
         
-        // Mevcut skoru kaydet
-        let oldScore = game.playerScores[currentUserId]?.score ?? 0
-        
         multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: isCorrect) { [weak self] _ in
             if isCorrect {
+                let oldScore = self?.game.playerScores[currentUserId]?.score ?? 0
                 DispatchQueue.main.async {
                     self?.animateScoreChange(for: self?.yourScoreLabel ?? UILabel(), from: oldScore, to: oldScore + 10)
                 }
             }
-        }
-        
-        // Eğer her iki oyuncu da cevap verdiyse veya süre dolduysa doğru cevabı göster
-        if bothPlayersAnswered || timeLeft <= 0 {
-            showCorrectAnswer()
+            
+            // Her iki oyuncu da cevap verdiyse veya süre dolduysa doğru cevabı göster
+            if self?.bothPlayersAnswered == true || self?.timeLeft == 0 {
+                DispatchQueue.main.async {
+                    self?.showCorrectAnswer()
+                }
+            }
         }
     }
     
@@ -530,19 +538,14 @@ class MultiplayerGameViewController: UIViewController {
         
         // Süre dolduğunda henüz cevap verilmediyse otomatik olarak yanlış cevap gönder
         if let currentUserId = Auth.auth().currentUser?.uid, !hasAnsweredCurrentQuestion {
-            multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { _ in }
-        }
-        
-        // Tüm butonları devre dışı bırak
-        answerStackView.arrangedSubviews.forEach { view in
-            if let button = view as? UIButton {
-                button.isUserInteractionEnabled = false
-                button.alpha = 0.5
+            multiplayerService.submitAnswer(gameId: game.id, userId: currentUserId, isCorrect: false) { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.showCorrectAnswer()
+                }
             }
+        } else {
+            showCorrectAnswer()
         }
-        
-        // Doğru cevabı göster
-        showCorrectAnswer()
     }
     
     private func endGame() {
