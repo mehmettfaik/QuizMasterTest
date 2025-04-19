@@ -1,0 +1,129 @@
+// Common
+"settings" = "Ayarlar";
+"language" = "Dil";
+"english" = "İngilizce";
+"turkish" = "Türkçe";
+"cancel" = "İptal";
+"close" = "Kapat";
+"save" = "Kaydet";
+"ok" = "Tamam";
+"success" = "Başarılı";
+"error" = "Hata";
+"delete" = "Sil";
+"change" = "Değiştir";
+"accept" = "Kabul Et";
+"decline" = "Reddet";
+
+// Navigation
+"profile" = "Profil";
+"appearance" = "Görünüm";
+"notifications" = "Bildirimler";
+"account" = "Hesap";
+
+// Home
+"good_morning" = "GÜNAYDIN ☀️";
+"good_afternoon" = "İYİ GÜNLER ⛅️";
+"good_evening" = "İYİ AKŞAMLAR 🌅";
+"good_night" = "İYİ GECELER 🌙";
+"quiz_categories" = "Quiz Kategorileri";
+"ask_ai" = "QuizGPT";
+"ai_description" = "Yapay zekamız her şeyi biliyor, yine de şansınızı denemelisiniz :)";
+
+// Categories
+"vehicle" = "Vehicle";
+"science" = "Science";
+"sports" = "Sports";
+"history" = "History";
+"art" = "Art";
+"celebrity" = "Celebrity";
+"video_games" = "Video Games";
+"general_culture" = "General Culture";
+"animals" = "Animals";
+"computer_science" = "Computer Science";
+"mathematics" = "Mathematics";
+"mythology" = "Mythology";
+"other" = "Other";
+
+// Stats
+"statistics" = "İstatistikler";
+"leaderboard" = "Liderlik Tablosu";
+"points" = "PUANLAR";
+"quizzes" = "QUIZ SAYISI";
+"world_rank" = "DÜNYA SIRASI";
+"this_week" = "Bu Hafta";
+"this_month" = "Bu Ay";
+"all_time" = "Tüm Zamanlar";
+"success_rates" = "Başarı Oranları (%)";
+"details" = "Detaylar";
+"correct" = "Doğru";
+"wrong" = "Yanlış";
+"score" = "Puan";
+
+// Search
+"search" = "Ara...";
+"categories" = "Kategoriler";
+"favorites" = "Favoriler";
+"top_quiz" = "En İyi Quiz";
+"no_results" = "Sonuç Bulunamadı";
+
+// Add Question
+"add_new_question" = "Yeni Soru Ekle";
+"category" = "Kategori";
+"difficulty" = "Zorluk";
+"easy" = "Easy";
+"medium" = "Medium";
+"hard" = "Hard";
+"question" = "Soru";
+"options" = "Seçenekler";
+"option" = "Seçenek";
+"save_question" = "Soruyu Kaydet";
+"saving" = "Kaydediliyor...";
+"fill_all_fields" = "Lütfen tüm alanları doldurun";
+"fill_all_options" = "Lütfen tüm seçenekleri doldurun";
+"select_correct_answer" = "Lütfen doğru cevabı seçin";
+"question_added_successfully" = "Soru başarıyla eklendi";
+
+// Difficulty
+"choose_challenge" = "Zorluk seviyenizi seçin";
+"perfect_for_beginners" = "Yeni başlayanlar için ideal";
+"for_experienced" = "Deneyimli oyuncular için";
+"test_expertise" = "Uzmanlığınızı test edin";
+
+// Settings
+"change_avatar" = "Avatarımı Değiştir";
+"change_name" = "İsmi Değiştir";
+"theme" = "Tema";
+"quiz_reminders" = "Quiz Hatırlatmaları";
+"special_offers" = "Özel Teklifler";
+"change_password" = "Şifre Değiştir";
+"delete_account" = "Hesabı Sil";
+"logout" = "Çıkış Yap";
+"select_avatar" = "Avatar Seç";
+"select_character" = "Karakterini seç";
+"enter_new_name" = "Yeni isminizi girin";
+"new_name" = "Yeni isminiz";
+"select_theme" = "Tema Seçin";
+"light_theme" = "Açık Tema";
+"dark_theme" = "Koyu Tema";
+"system_theme" = "Sistem";
+"avatar_updated" = "Avatarınız başarıyla güncellendi.";
+"name_updated" = "İsminiz başarıyla güncellendi.";
+
+// Auth
+"login" = "Giriş Yap";
+"signup" = "Kayıt Ol";
+"email" = "E-posta";
+"password" = "Şifre";
+
+// Profile
+"edit_profile" = "Profili Düzenle";
+"my_friends" = "Arkadaşlarım";
+"achievements" = "Başarı Rozetleri";
+"no_badges_yet" =  "Henüz Rozet Yok";
+"earn_badges_message" = "Rozet kazanmak için sınavları çözün!";
+
+// Quiz
+"start_quiz" = "Sınava Başla";
+"next_question" = "Sonraki Soru";
+"finish_quiz" = "Sınavı Bitir";
+"your_score" = "Puanınız"; 

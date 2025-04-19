@@ -24,8 +24,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         self.window = window
         
         // Kullanıcının giriş durumunu kontrol et
-        if Auth.auth().currentUser != nil {
-            // Kullanıcı giriş yapmışsa TabBarController'ı göster
+        if let currentUser = Auth.auth().currentUser {
+            // Kullanıcı giriş yapmışsa, dil ayarını yükle
+            db.collection("users").document(currentUser.uid).getDocument { snapshot, error in
+                if let data = snapshot?.data(),
+                   let language = data["language"] as? String {
+                    LanguageManager.shared.currentLanguage = language
+                }
+            }
+            
+            // TabBarController'ı göster
             window.rootViewController = MainTabBarController()
             updateUserOnlineStatus(isOnline: true)
         } else {
@@ -77,6 +85,38 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             if let error = error {
                 print("Error updating online status: \(error.localizedDescription)")
             }
+        }
+    }
+
+    func resetRootViewController() {
+        guard let window = self.window else { return }
+        
+        // Kullanıcının giriş durumunu kontrol et
+        if let currentUser = Auth.auth().currentUser {
+            // Kullanıcı giriş yapmışsa TabBarController'ı göster
+            let mainTabBarController = MainTabBarController()
+            
+            // Animasyonlu geçiş efekti
+            UIView.transition(with: window,
+                             duration: 0.3,
+                             options: .transitionCrossDissolve,
+                             animations: {
+                window.rootViewController = mainTabBarController
+            }, completion: nil)
+            
+            // Online durumunu güncelle
+            updateUserOnlineStatus(isOnline: true)
+        } else {
+            // Kullanıcı giriş yapmamışsa LoginViewController'ı göster
+            let loginViewController = LoginViewController()
+            
+            // Animasyonlu geçiş efekti
+            UIView.transition(with: window,
+                             duration: 0.3,
+                             options: .transitionCrossDissolve,
+                             animations: {
+                window.rootViewController = loginViewController
+            }, completion: nil)
         }
     }
 }

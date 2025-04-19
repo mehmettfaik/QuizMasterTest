@@ -158,8 +158,10 @@ class OnlineUsersViewController: UIViewController {
         // Prevent showing duplicate invitations
         guard presentedViewController == nil else { return }
         
+        let localizedText = LanguageManager.shared.localizedString(for: "key")
+        
         let alert = UIAlertController(
-            title: "Game Invitation",
+            title: localizedText,
             message: "\(game.creatorName) has invited you to play a quiz game!",
             preferredStyle: .alert
         )

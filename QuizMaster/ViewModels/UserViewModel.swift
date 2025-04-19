@@ -354,6 +354,8 @@ class UserViewModel: ObservableObject {
         userRef.updateData(["language": language]) { [weak self] error in
             if error == nil {
                 self?.language = language
+                // Dil değişikliğini LanguageManager'a bildir
+                LanguageManager.shared.currentLanguage = language
             }
             completion(error)
         }

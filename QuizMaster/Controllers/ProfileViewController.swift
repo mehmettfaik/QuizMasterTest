@@ -144,7 +144,7 @@ class ProfileViewController: UIViewController {
     
     private let achievementsLabel: UILabel = {
         let label = UILabel()
-        label.text = "Başarı Rozetleri"
+        label.text = LanguageManager.shared.localizedString(for: "achievements")
         label.font = .systemFont(ofSize: 28, weight: .bold)
         label.textColor = .primaryPurple
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -183,7 +183,7 @@ class ProfileViewController: UIViewController {
     
     private let friendsButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Arkadaşlarım", for: .normal)
+        button.setTitle(LanguageManager.shared.localizedString(for: "my_friends"), for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = .primaryPurple
         button.layer.cornerRadius = 20
@@ -218,7 +218,7 @@ class ProfileViewController: UIViewController {
         super.viewDidLoad()
         navigationController?.navigationBar.isHidden = false
         navigationController?.navigationBar.prefersLargeTitles = false
-        navigationItem.title = "Profil"
+        navigationItem.title = LanguageManager.shared.localizedString(for: "profile")
         setupUI()
         setupCollectionView()
         setupBindings()
@@ -440,20 +440,19 @@ class ProfileViewController: UIViewController {
     }
     
     private func handleGameInvitation(_ game: MultiplayerGame) {
-        // Prevent showing duplicate invitations
         guard presentedViewController == nil else { return }
         
         let alert = UIAlertController(
-            title: "Game Invitation",
-            message: "\(game.creatorName) has invited you to play a quiz game!",
+            title: LanguageManager.shared.localizedString(for: "game_invitation"),
+            message: String(format: LanguageManager.shared.localizedString(for: "game_invitation_message"), game.creatorName),
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "Accept", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "accept"), style: .default) { [weak self] _ in
             self?.acceptGameInvitation(game)
         })
         
-        alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "decline"), style: .destructive) { [weak self] _ in
             self?.declineGameInvitation(game)
         })
         
@@ -705,8 +704,8 @@ class AchievementCell: UICollectionViewCell {
     }
     
     func configureAsPlaceholder() {
-        titleLabel.text = "Henüz Rozet Yok"
-        descriptionLabel.text = "Quiz çözerek rozetler kazanabilirsiniz!"
+        titleLabel.text = LanguageManager.shared.localizedString(for: "no_badges_yet")
+        descriptionLabel.text = LanguageManager.shared.localizedString(for: "earn_badges_message")
         iconImageView.image = UIImage(systemName: "star.circle")
         iconImageView.tintColor = .gray
         progressView.isHidden = true
@@ -743,10 +742,10 @@ class SettingsViewController: UIViewController {
         
         var title: String {
             switch self {
-            case .profile: return "Profil"
-            case .appearance: return "Görünüm"
-            case .notifications: return "Bildirimler"
-            case .account: return "Hesap"
+            case .profile: return LanguageManager.shared.localizedString(for: "profile")
+            case .appearance: return LanguageManager.shared.localizedString(for: "appearance")
+            case .notifications: return LanguageManager.shared.localizedString(for: "notifications")
+            case .account: return LanguageManager.shared.localizedString(for: "account")
             }
         }
         
@@ -754,23 +753,24 @@ class SettingsViewController: UIViewController {
             switch self {
             case .profile:
                 return [
-                    .init(title: "Avatarımı Değiştir", icon: "person.crop.circle.fill"),
-                    .init(title: "İsmi Değiştir", icon: "pencil")
+                    .init(title: LanguageManager.shared.localizedString(for: "change_avatar"), icon: "person.crop.circle.fill"),
+                    .init(title: LanguageManager.shared.localizedString(for: "change_name"), icon: "pencil")
                 ]
             case .appearance:
                 return [
-                    .init(title: "Dil", icon: "globe")
+                    .init(title: LanguageManager.shared.localizedString(for: "theme"), icon: "moon.fill"),
+                    .init(title: LanguageManager.shared.localizedString(for: "language"), icon: "globe")
                 ]
             case .notifications:
                 return [
-                    .init(title: "Quiz Hatırlatmaları", icon: "bell.fill"),
-                    .init(title: "Özel Teklifler", icon: "tag.fill")
+                    .init(title: LanguageManager.shared.localizedString(for: "quiz_reminders"), icon: "bell.fill"),
+                    .init(title: LanguageManager.shared.localizedString(for: "special_offers"), icon: "tag.fill")
                 ]
             case .account:
                 return [
-                    .init(title: "Şifre Değiştir", icon: "lock.fill"),
-                    .init(title: "Hesabı Sil", icon: "trash.fill", isDestructive: true),
-                    .init(title: "Çıkış Yap", icon: "rectangle.portrait.and.arrow.right", isDestructive: true)
+                    .init(title: LanguageManager.shared.localizedString(for: "change_password"), icon: "lock.fill"),
+                    .init(title: LanguageManager.shared.localizedString(for: "delete_account"), icon: "trash.fill", isDestructive: true),
+                    .init(title: LanguageManager.shared.localizedString(for: "logout"), icon: "rectangle.portrait.and.arrow.right", isDestructive: true)
                 ]
             }
         }
@@ -788,11 +788,11 @@ class SettingsViewController: UIViewController {
     }
     
     private func setupUI() {
-        title = "Ayarlar"
+        title = LanguageManager.shared.localizedString(for: "settings")
         view.backgroundColor = .systemGroupedBackground
         
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-            title: "Kapat",
+            title: LanguageManager.shared.localizedString(for: "close"),
             style: .done,
             target: self,
             action: #selector(closeTapped)
@@ -817,7 +817,11 @@ class SettingsViewController: UIViewController {
     }
     
     private func handleProfilePhotoChange() {
-        let alert = UIAlertController(title: "Avatar Seç", message: "Karakterini seç", preferredStyle: .actionSheet)
+        let alert = UIAlertController(
+            title: LanguageManager.shared.localizedString(for: "select_avatar"),
+            message: LanguageManager.shared.localizedString(for: "select_character"),
+            preferredStyle: .actionSheet
+        )
         
         for avatar in Avatar.allCases {
             let action = UIAlertAction(title: avatar.displayName, style: .default) { [weak self] _ in
@@ -826,7 +830,7 @@ class SettingsViewController: UIViewController {
                         if let error = error {
                             self?.showErrorAlert(error)
                         } else {
-                            self?.showSuccessAlert(message: "Avatarınız başarıyla güncellendi.")
+                            self?.showSuccessAlert(message: LanguageManager.shared.localizedString(for: "avatar_updated"))
                         }
                     }
                 }
@@ -854,24 +858,24 @@ class SettingsViewController: UIViewController {
             alert.addAction(action)
         }
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
         present(alert, animated: true)
     }
     
     private func handleNameChange() {
         let alert = UIAlertController(
-            title: "İsim Değiştir",
-            message: "Yeni isminizi girin",
+            title: LanguageManager.shared.localizedString(for: "change_name"),
+            message: LanguageManager.shared.localizedString(for: "enter_new_name"),
             preferredStyle: .alert
         )
         
         alert.addTextField { textField in
-            textField.placeholder = "Yeni isminiz"
+            textField.placeholder = LanguageManager.shared.localizedString(for: "new_name")
             textField.autocapitalizationType = .words
         }
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Kaydet", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "save"), style: .default) { [weak self] _ in
             guard let self = self,
                   let newName = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !newName.isEmpty else { return }
@@ -881,7 +885,7 @@ class SettingsViewController: UIViewController {
                     if let error = error {
                         self.showErrorAlert(error)
                     } else {
-                        self.showSuccessAlert(message: "İsminiz başarıyla güncellendi.")
+                        self.showSuccessAlert(message: LanguageManager.shared.localizedString(for: "name_updated"))
                     }
                 }
             }
@@ -891,17 +895,30 @@ class SettingsViewController: UIViewController {
     }
     
     private func handleThemeChange() {
-        let alert = UIAlertController(title: "Tema Seçin", message: nil, preferredStyle: .actionSheet)
+        let alert = UIAlertController(
+            title: LanguageManager.shared.localizedString(for: "select_theme"),
+            message: nil,
+            preferredStyle: .actionSheet
+        )
         
-        alert.addAction(UIAlertAction(title: "Açık Tema", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "light_theme"),
+            style: .default
+        ) { [weak self] _ in
             self?.viewModel.updateTheme(isDark: false)
         })
         
-        alert.addAction(UIAlertAction(title: "Koyu Tema", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "dark_theme"),
+            style: .default
+        ) { [weak self] _ in
             self?.viewModel.updateTheme(isDark: true)
         })
         
-        alert.addAction(UIAlertAction(title: "Sistem", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "system_theme"),
+            style: .default
+        ) { _ in
             if #available(iOS 13.0, *) {
                 let scenes = UIApplication.shared.connectedScenes
                 let windowScene = scenes.first as? UIWindowScene
@@ -910,59 +927,103 @@ class SettingsViewController: UIViewController {
             }
         })
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
         present(alert, animated: true)
     }
     
     private func handleLanguageChange() {
-        let alert = UIAlertController(title: "Dil Seçin", message: nil, preferredStyle: .actionSheet)
+        let alert = UIAlertController(
+            title: LanguageManager.shared.localizedString(for: "language"),
+            message: nil,
+            preferredStyle: .actionSheet
+        )
         
-        alert.addAction(UIAlertAction(title: "Türkçe", style: .default) { [weak self] _ in
+        let turkishAction = UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "turkish"),
+            style: .default
+        ) { [weak self] _ in
             self?.viewModel.updateLanguage("tr") { error in
-                if let error = error {
-                    self?.showErrorAlert(error)
+                DispatchQueue.main.async {
+                    if let error = error {
+                        self?.showErrorAlert(error)
+                    } else {
+                        // Önce mevcut view controller'ı kapat
+                        self?.dismiss(animated: true) {
+                            // Sonra uygulamayı yeniden başlat
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let sceneDelegate = windowScene.delegate as? SceneDelegate {
+                                sceneDelegate.resetRootViewController()
+                            }
+                        }
+                    }
                 }
             }
-        })
+        }
         
-        alert.addAction(UIAlertAction(title: "English", style: .default) { [weak self] _ in
+        let englishAction = UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "english"),
+            style: .default
+        ) { [weak self] _ in
             self?.viewModel.updateLanguage("en") { error in
-                if let error = error {
-                    self?.showErrorAlert(error)
+                DispatchQueue.main.async {
+                    if let error = error {
+                        self?.showErrorAlert(error)
+                    } else {
+                        // Önce mevcut view controller'ı kapat
+                        self?.dismiss(animated: true) {
+                            // Sonra uygulamayı yeniden başlat
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let sceneDelegate = windowScene.delegate as? SceneDelegate {
+                                sceneDelegate.resetRootViewController()
+                            }
+                        }
+                    }
                 }
             }
-        })
+        }
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
+        let cancelAction = UIAlertAction(
+            title: LanguageManager.shared.localizedString(for: "cancel"),
+            style: .cancel
+        )
+        
+        alert.addAction(turkishAction)
+        alert.addAction(englishAction)
+        alert.addAction(cancelAction)
+        
+        // iPad için popover presentation
+        if let popoverController = alert.popoverPresentationController {
+            popoverController.sourceView = tableView
+            popoverController.sourceRect = tableView.bounds
+        }
         
         present(alert, animated: true)
     }
     
     private func handlePasswordChange() {
         let alert = UIAlertController(
-            title: "Şifre Değiştir",
-            message: "Yeni şifrenizi girin",
+            title: LanguageManager.shared.localizedString(for: "change_password"),
+            message: LanguageManager.shared.localizedString(for: "enter_new_password"),
             preferredStyle: .alert
         )
         
         alert.addTextField { textField in
-            textField.placeholder = "Mevcut şifre"
+            textField.placeholder = LanguageManager.shared.localizedString(for: "current_password")
             textField.isSecureTextEntry = true
         }
         
         alert.addTextField { textField in
-            textField.placeholder = "Yeni şifre"
+            textField.placeholder = LanguageManager.shared.localizedString(for: "new_password")
             textField.isSecureTextEntry = true
         }
         
         alert.addTextField { textField in
-            textField.placeholder = "Yeni şifre tekrar"
+            textField.placeholder = LanguageManager.shared.localizedString(for: "confirm_new_password")
             textField.isSecureTextEntry = true
         }
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Değiştir", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "change"), style: .default) { [weak self] _ in
             guard let self = self,
                   let currentPassword = alert.textFields?[0].text,
                   let newPassword = alert.textFields?[1].text,
@@ -970,7 +1031,7 @@ class SettingsViewController: UIViewController {
                   !currentPassword.isEmpty,
                   !newPassword.isEmpty,
                   newPassword == confirmPassword else {
-                self?.showErrorAlert(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Lütfen tüm alanları doldurun ve şifrelerin eşleştiğinden emin olun."]))
+                self?.showErrorAlert(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: LanguageManager.shared.localizedString(for: "password_fields_error")]))
                 return
             }
             
@@ -979,7 +1040,7 @@ class SettingsViewController: UIViewController {
                     if let error = error {
                         self.showErrorAlert(error)
                     } else {
-                        self.showSuccessAlert(message: "Şifreniz başarıyla güncellendi.")
+                        self.showSuccessAlert(message: LanguageManager.shared.localizedString(for: "password_updated"))
                     }
                 }
             }
@@ -990,18 +1051,18 @@ class SettingsViewController: UIViewController {
     
     private func handleAccountDeletion() {
         let alert = UIAlertController(
-            title: "Hesabı Sil",
-            message: "Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+            title: LanguageManager.shared.localizedString(for: "delete_account"),
+            message: LanguageManager.shared.localizedString(for: "delete_account_confirmation"),
             preferredStyle: .alert
         )
         
         alert.addTextField { textField in
-            textField.placeholder = "Şifrenizi girin"
+            textField.placeholder = LanguageManager.shared.localizedString(for: "enter_password")
             textField.isSecureTextEntry = true
         }
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Sil", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "delete"), style: .destructive) { [weak self] _ in
             guard let self = self,
                   let password = alert.textFields?.first?.text,
                   !password.isEmpty else { return }
@@ -1011,7 +1072,6 @@ class SettingsViewController: UIViewController {
                     if let error = error {
                         self.showErrorAlert(error)
                     } else {
-                        // Hesap başarıyla silindi, login ekranına yönlendir
                         let loginVC = LoginViewController()
                         loginVC.modalPresentationStyle = .fullScreen
                         self.present(loginVC, animated: true)
@@ -1025,13 +1085,13 @@ class SettingsViewController: UIViewController {
     
     private func handleSignOut() {
         let alert = UIAlertController(
-            title: "Çıkış Yap",
-            message: "Çıkış yapmak istediğinize emin misiniz?",
+            title: LanguageManager.shared.localizedString(for: "logout"),
+            message: LanguageManager.shared.localizedString(for: "logout_confirmation"),
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Çıkış Yap", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "logout"), style: .destructive) { [weak self] _ in
             self?.viewModel.signOut()
             let loginVC = LoginViewController()
             loginVC.modalPresentationStyle = .fullScreen
@@ -1043,11 +1103,11 @@ class SettingsViewController: UIViewController {
     
     private func showSuccessAlert(message: String) {
         let alert = UIAlertController(
-            title: "Başarılı",
+            title: LanguageManager.shared.localizedString(for: "success"),
             message: message,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Tamam", style: .default))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "ok"), style: .default))
         present(alert, animated: true)
     }
 }
@@ -1121,13 +1181,13 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
     
     private func handleQuizReminders() {
         let alert = UIAlertController(
-            title: "Quiz Hatırlatmaları",
-            message: "Quiz hatırlatmalarını açmak/kapatmak için ayarlara yönlendirileceksiniz.",
+            title: LanguageManager.shared.localizedString(for: "quiz_reminders"),
+            message: LanguageManager.shared.localizedString(for: "quiz_reminders_settings_message"),
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Ayarlara Git", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "go_to_settings"), style: .default) { _ in
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
@@ -1138,13 +1198,13 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
     
     private func handleSpecialOffers() {
         let alert = UIAlertController(
-            title: "Özel Teklifler",
-            message: "Özel teklif bildirimlerini açmak/kapatmak için ayarlara yönlendirileceksiniz.",
+            title: LanguageManager.shared.localizedString(for: "special_offers"),
+            message: LanguageManager.shared.localizedString(for: "special_offers_settings_message"),
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Ayarlara Git", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "go_to_settings"), style: .default) { _ in
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
