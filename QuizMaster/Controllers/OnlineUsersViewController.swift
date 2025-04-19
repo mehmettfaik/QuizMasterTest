@@ -6,6 +6,8 @@ class OnlineUsersViewController: UIViewController {
     private let tableView: UITableView = {
         let table = UITableView()
         table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        table.backgroundColor = .clear
+        table.separatorStyle = .none
         return table
     }()
     
@@ -14,8 +16,32 @@ class OnlineUsersViewController: UIViewController {
     private var onlineUsersListener: ListenerRegistration?
     private var invitationListener: ListenerRegistration?
     
+    private let containerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .white
+        view.layer.cornerRadius = 20
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = .zero
+        view.layer.shadowRadius = 15
+        view.layer.shadowOpacity = 0.2
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Online Kullanıcılar"
+        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.textColor = .primaryPurple
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupNavigationBar()
+        setupWave()
         setupUI()
         setupListeners()
     }
@@ -36,21 +62,67 @@ class OnlineUsersViewController: UIViewController {
         }
     }
     
-    private func setupUI() {
-        title = "Online Users"
-        view.backgroundColor = .systemBackground
+    private func setupNavigationBar() {
+        // Make navigation bar transparent
+        navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
+        navigationController?.navigationBar.shadowImage = UIImage()
         
-        view.addSubview(tableView)
-        tableView.delegate = self
-        tableView.dataSource = self
+        // Set navigation bar tint color to white (affects back button)
+        navigationController?.navigationBar.tintColor = .white
+        
+        // Set title color to white if needed
+        navigationController?.navigationBar.titleTextAttributes = [
+            NSAttributedString.Key.foregroundColor: UIColor.white
+        ]
+    }
+    
+    private func setupWave() {
+        let purpleView = UIView()
+        purpleView.backgroundColor = .primaryPurple
+        purpleView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add bottom corners to purple view
+        purpleView.layer.cornerRadius = 30
+        purpleView.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        
+        view.addSubview(purpleView)
+        
+        NSLayoutConstraint.activate([
+            purpleView.topAnchor.constraint(equalTo: view.topAnchor),
+            purpleView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            purpleView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            purpleView.heightAnchor.constraint(equalToConstant: 120)
+        ])
+    }
+    
+    private func setupUI() {
+        view.backgroundColor = .primaryPurple
+        navigationItem.title = ""
+        
+        view.addSubview(containerView)
+        containerView.addSubview(titleLabel)
+        containerView.addSubview(tableView)
         
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            containerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
+            containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            containerView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
+            
+            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 15),
+            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            
+            tableView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 15),
+            tableView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 25),
+            tableView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -25),
+            tableView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -15)
         ])
+        
+        tableView.delegate = self
+        tableView.dataSource = self
     }
     
     private func setupListeners() {
@@ -144,24 +216,73 @@ extension OnlineUsersViewController: UITableViewDelegate, UITableViewDataSource 
         var content = cell.defaultContentConfiguration()
         content.text = user.name
         content.secondaryText = "Online"
+        content.textProperties.font = .systemFont(ofSize: 16, weight: .medium)
+        content.secondaryTextProperties.font = .systemFont(ofSize: 14)
+        content.secondaryTextProperties.color = .systemGreen
+        
+        // Add extra padding to content
+        content.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
         cell.contentConfiguration = content
         
+        // Cell styling
+        cell.backgroundColor = .clear // Changed to clear
+        
+        // Create a background view with enhanced shadow
+        let backgroundView = UIView()
+        backgroundView.backgroundColor = .white
+        backgroundView.layer.cornerRadius = 12
+        
+        // Enhanced shadow settings
+        backgroundView.layer.shadowColor = UIColor.black.cgColor
+        backgroundView.layer.shadowOpacity = 0.2
+        backgroundView.layer.shadowOffset = .zero
+        backgroundView.layer.shadowRadius = 10
+        
+        // Important: Add these lines to make shadow visible on all sides
+        backgroundView.layer.masksToBounds = false
+        backgroundView.frame = cell.bounds.inset(by: UIEdgeInsets(top: 5, left: 8, bottom: 5, right: 8))
+        
+        cell.backgroundView = backgroundView
+        
+        // Remove selection style
+        cell.selectionStyle = .none
+        
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 80 // Increased height to accommodate shadow
+    }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let headerView = UIView()
+        headerView.backgroundColor = .clear
+        return headerView
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 15 // Increased spacing between cells
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         
         let user = onlineUsers[indexPath.row]
-        let alert = UIAlertController(title: "Challenge User",
-                                    message: "Do you want to challenge \(user.name) to a quiz?",
-                                    preferredStyle: .alert)
+        let alert = UIAlertController(
+            title: "Oyuncuyu Davet Et",
+            message: "\(user.name) adlı oyuncuya meydan okumak ister misiniz?",
+            preferredStyle: .alert
+        )
         
-        alert.addAction(UIAlertAction(title: "Yes", style: .default) { [weak self] _ in
+        let challengeAction = UIAlertAction(title: "Davet Et", style: .default) { [weak self] _ in
             self?.sendGameInvitation(to: user)
-        })
+        }
+        challengeAction.setValue(UIColor.primaryPurple, forKey: "titleTextColor")
         
-        alert.addAction(UIAlertAction(title: "No", style: .cancel))
+        let cancelAction = UIAlertAction(title: "İptal", style: .cancel)
+        
+        alert.addAction(challengeAction)
+        alert.addAction(cancelAction)
         
         present(alert, animated: true)
     }

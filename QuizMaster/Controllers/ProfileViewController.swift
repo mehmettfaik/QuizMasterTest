@@ -759,7 +759,6 @@ class SettingsViewController: UIViewController {
                 ]
             case .appearance:
                 return [
-                    .init(title: "Tema", icon: "moon.circle.fill"),
                     .init(title: "Dil", icon: "globe")
                 ]
             case .notifications:

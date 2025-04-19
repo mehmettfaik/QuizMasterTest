@@ -5,28 +5,79 @@ class GameSetupViewController: UIViewController {
     private let game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
     
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Oyun Ayarları"
+        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.textColor = .white
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private let containerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .white
+        view.layer.cornerRadius = 20
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOpacity = 0.1
+        view.layer.shadowOffset = CGSize(width: 0, height: 2)
+        view.layer.shadowRadius = 10
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let categoryLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Kategori Seçin"
+        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.textColor = .primaryPurple
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private let difficultyLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Zorluk Seçin"
+        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.textColor = .primaryPurple
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private let categoryPicker: UIPickerView = {
         let picker = UIPickerView()
+        picker.translatesAutoresizingMaskIntoConstraints = false
         return picker
     }()
     
     private let difficultyPicker: UIPickerView = {
         let picker = UIPickerView()
+        picker.translatesAutoresizingMaskIntoConstraints = false
         return picker
     }()
     
     private let startButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Start Game", for: .normal)
-        button.backgroundColor = .systemBlue
+        button.setTitle("Oyunu Başlat", for: .normal)
+        button.backgroundColor = .primaryPurple
         button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.layer.cornerRadius = 12
+        button.translatesAutoresizingMaskIntoConstraints = false
         return button
+    }()
+    
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.color = .primaryPurple
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
     }()
     
     private var categories: [QuizCategory] = []
     private let difficulties = ["Easy", "Medium", "Hard"]
-    private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
     // Listeners
     private var categoryListener: ListenerRegistration?
@@ -43,6 +94,7 @@ class GameSetupViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupWave()
         setupUI()
         setupListeners()
         fetchCategories()
@@ -54,52 +106,70 @@ class GameSetupViewController: UIViewController {
         gameListener?.remove()
     }
     
+    private func setupWave() {
+        let purpleView = UIView()
+        purpleView.backgroundColor = .primaryPurple
+        purpleView.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(purpleView)
+        
+        NSLayoutConstraint.activate([
+            purpleView.topAnchor.constraint(equalTo: view.topAnchor),
+            purpleView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            purpleView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            purpleView.heightAnchor.constraint(equalToConstant: 120)
+        ])
+    }
+    
     private func setupUI() {
-        title = "Game Setup"
         view.backgroundColor = .systemBackground
+        navigationItem.title = ""
         
-        let categoryLabel = UILabel()
-        categoryLabel.text = "Select Category"
-        categoryLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+        view.addSubview(containerView)
+        view.addSubview(loadingIndicator)
         
-        let difficultyLabel = UILabel()
-        difficultyLabel.text = "Select Difficulty"
-        difficultyLabel.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(categoryLabel)
+        containerView.addSubview(categoryPicker)
+        containerView.addSubview(difficultyLabel)
+        containerView.addSubview(difficultyPicker)
+        containerView.addSubview(startButton)
         
         categoryPicker.delegate = self
         categoryPicker.dataSource = self
         difficultyPicker.delegate = self
         difficultyPicker.dataSource = self
         
-        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-        loadingIndicator.hidesWhenStopped = true
-        
-        [categoryLabel, categoryPicker, difficultyLabel, difficultyPicker, startButton, loadingIndicator].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview($0)
-        }
-        
         NSLayoutConstraint.activate([
-            categoryLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            categoryLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: -35),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            categoryPicker.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 8),
-            categoryPicker.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            categoryPicker.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            containerView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 30),
+            containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            containerView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            
+            categoryLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
+            categoryLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            
+            categoryPicker.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 10),
+            categoryPicker.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            categoryPicker.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             categoryPicker.heightAnchor.constraint(equalToConstant: 150),
             
             difficultyLabel.topAnchor.constraint(equalTo: categoryPicker.bottomAnchor, constant: 20),
-            difficultyLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            difficultyLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
             
-            difficultyPicker.topAnchor.constraint(equalTo: difficultyLabel.bottomAnchor, constant: 8),
-            difficultyPicker.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            difficultyPicker.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            difficultyPicker.topAnchor.constraint(equalTo: difficultyLabel.bottomAnchor, constant: 10),
+            difficultyPicker.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            difficultyPicker.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             difficultyPicker.heightAnchor.constraint(equalToConstant: 150),
             
-            startButton.topAnchor.constraint(equalTo: difficultyPicker.bottomAnchor, constant: 40),
-            startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            startButton.widthAnchor.constraint(equalToConstant: 200),
-            startButton.heightAnchor.constraint(equalToConstant: 44),
+            startButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -30),
+            startButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            startButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            startButton.heightAnchor.constraint(equalToConstant: 50),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)

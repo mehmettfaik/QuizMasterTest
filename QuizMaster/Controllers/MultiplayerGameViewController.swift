@@ -15,34 +15,48 @@ class MultiplayerGameViewController: UIViewController {
     
     private var selectedButton: UIButton?
     
+    private let questionContainerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .secondarySystemGroupedBackground
+        view.layer.cornerRadius = 16
+        return view
+    }()
+    
     private let questionLabel: UILabel = {
         let label = UILabel()
         label.numberOfLines = 0
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.font = .systemFont(ofSize: 20, weight: .bold)
         return label
     }()
     
     private let timerLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.font = .systemFont(ofSize: 32, weight: .bold)
+        label.textColor = .systemBlue
         return label
     }()
     
     private let scoreView: UIView = {
         let view = UIView()
         view.backgroundColor = .systemBackground
-        view.layer.cornerRadius = 12
+        view.layer.cornerRadius = 16
         view.layer.borderWidth = 1
         view.layer.borderColor = UIColor.systemGray4.cgColor
+        
+        // Add shadow
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 2)
+        view.layer.shadowRadius = 4
+        view.layer.shadowOpacity = 0.1
         return view
     }()
     
     private let yourScoreLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 16, weight: .bold)
+        label.font = .systemFont(ofSize: 18, weight: .bold)
         label.textColor = .label
         label.numberOfLines = 0
         label.adjustsFontSizeToFitWidth = true
@@ -53,7 +67,7 @@ class MultiplayerGameViewController: UIViewController {
     private let opponentScoreLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 16, weight: .bold)
+        label.font = .systemFont(ofSize: 18, weight: .bold)
         label.textColor = .secondaryLabel
         label.numberOfLines = 0
         label.adjustsFontSizeToFitWidth = true
@@ -65,8 +79,8 @@ class MultiplayerGameViewController: UIViewController {
         let label = UILabel()
         label.text = "VS"
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .systemGray
+        label.font = .systemFont(ofSize: 16, weight: .black)
+        label.textColor = .systemRed
         return label
     }()
     
@@ -82,7 +96,7 @@ class MultiplayerGameViewController: UIViewController {
         let stack = UIStackView()
         stack.axis = .vertical
         stack.distribution = .fillEqually
-        stack.spacing = 10
+        stack.spacing = 12
         return stack
     }()
     
@@ -116,19 +130,22 @@ class MultiplayerGameViewController: UIViewController {
     
     private func setupUI() {
         title = "Multiplayer Quiz"
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .systemGroupedBackground
+        
+        // Add subviews
+        [timerLabel, scoreView, questionContainerView, answerStackView].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview($0)
+        }
+        
+        questionContainerView.addSubview(questionLabel)
+        questionLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // Score view setup
         scoreView.addSubview(scoreStackView)
         scoreStackView.addArrangedSubview(yourScoreLabel)
         scoreStackView.addArrangedSubview(vsLabel)
         scoreStackView.addArrangedSubview(opponentScoreLabel)
-        
-        [timerLabel, scoreView, questionLabel, answerStackView].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview($0)
-        }
-        
         scoreStackView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
@@ -136,24 +153,28 @@ class MultiplayerGameViewController: UIViewController {
             timerLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
             scoreView.topAnchor.constraint(equalTo: timerLabel.bottomAnchor, constant: 20),
-            scoreView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            scoreView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            scoreView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            scoreView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             scoreView.heightAnchor.constraint(equalToConstant: 100),
             
-            scoreStackView.leadingAnchor.constraint(equalTo: scoreView.leadingAnchor, constant: 20),
-            scoreStackView.trailingAnchor.constraint(equalTo: scoreView.trailingAnchor, constant: -20),
-            scoreStackView.topAnchor.constraint(equalTo: scoreView.topAnchor, constant: 10),
-            scoreStackView.bottomAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: -10),
+            scoreStackView.leadingAnchor.constraint(equalTo: scoreView.leadingAnchor, constant: 16),
+            scoreStackView.trailingAnchor.constraint(equalTo: scoreView.trailingAnchor, constant: -16),
+            scoreStackView.topAnchor.constraint(equalTo: scoreView.topAnchor, constant: 16),
+            scoreStackView.bottomAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: -16),
             
-            vsLabel.widthAnchor.constraint(equalToConstant: 40),
+            questionContainerView.topAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: 24),
+            questionContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            questionContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             
-            questionLabel.topAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: 40),
-            questionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            questionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            questionLabel.topAnchor.constraint(equalTo: questionContainerView.topAnchor, constant: 24),
+            questionLabel.leadingAnchor.constraint(equalTo: questionContainerView.leadingAnchor, constant: 16),
+            questionLabel.trailingAnchor.constraint(equalTo: questionContainerView.trailingAnchor, constant: -16),
+            questionLabel.bottomAnchor.constraint(equalTo: questionContainerView.bottomAnchor, constant: -24),
             
-            answerStackView.topAnchor.constraint(equalTo: questionLabel.bottomAnchor, constant: 40),
-            answerStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            answerStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+            answerStackView.topAnchor.constraint(equalTo: questionContainerView.bottomAnchor, constant: 24),
+            answerStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            answerStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            answerStackView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24)
         ])
         
         updateScoreLabel()
@@ -268,11 +289,18 @@ class MultiplayerGameViewController: UIViewController {
             for option in question.options {
                 let button = UIButton(type: .system)
                 button.setTitle(option, for: .normal)
+                button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
                 button.backgroundColor = .systemBlue
                 button.setTitleColor(.white, for: .normal)
-                button.layer.cornerRadius = 8
-                button.layer.borderWidth = 0
-                button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+                button.layer.cornerRadius = 12
+                
+                // Add shadow
+                button.layer.shadowColor = UIColor.black.cgColor
+                button.layer.shadowOffset = CGSize(width: 0, height: 2)
+                button.layer.shadowRadius = 4
+                button.layer.shadowOpacity = 0.1
+                
+                button.heightAnchor.constraint(equalToConstant: 56).isActive = true
                 button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
                 self.answerStackView.addArrangedSubview(button)
             }
@@ -445,20 +473,21 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func highlightSelectedButton(_ button: UIButton) {
-        // Önceki seçili butonu normale döndür
+        // Reset previous button
         selectedButton?.backgroundColor = .systemBlue
-        selectedButton?.layer.borderWidth = 0
+        selectedButton?.transform = .identity
         
-        // Yeni butonu vurgula
+        // Highlight new button
         button.backgroundColor = .systemIndigo
-        button.layer.borderColor = UIColor.white.cgColor
-        button.layer.borderWidth = 2
-        button.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
         
-        // Animasyonlu geçiş efekti
-        UIView.animate(withDuration: 0.2, animations: {
-            button.transform = .identity
-        })
+        // Add animation
+        UIView.animate(withDuration: 0.2) {
+            button.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+        } completion: { _ in
+            UIView.animate(withDuration: 0.1) {
+                button.transform = .identity
+            }
+        }
         
         selectedButton = button
     }
@@ -642,4 +671,5 @@ class MultiplayerGameViewController: UIViewController {
             self?.navigationController?.popToRootViewController(animated: true)
         }
     }
-} 
+}
+
