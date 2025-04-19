@@ -572,70 +572,138 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func showResultScreen(with finalGame: MultiplayerGame) {
-        // Özel sonuç ekranı oluştur
         let resultVC = UIViewController()
-        resultVC.view.backgroundColor = .systemBackground
         resultVC.modalPresentationStyle = .fullScreen
         
-        // Başlık etiketi
+        // Gradient background
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.colors = [
+            UIColor.systemIndigo.cgColor,
+            UIColor.systemPurple.cgColor
+        ]
+        gradientLayer.locations = [0.0, 1.0]
+        gradientLayer.frame = view.bounds
+        resultVC.view.layer.insertSublayer(gradientLayer, at: 0)
+        
+        // Container view for content
+        let contentView = UIView()
+        contentView.backgroundColor = .clear
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        resultVC.view.addSubview(contentView)
+        
+        // Trophy image for winner
+        let trophyImageView = UIImageView()
+        trophyImageView.contentMode = .scaleAspectFit
+        trophyImageView.translatesAutoresizingMaskIntoConstraints = false
+        trophyImageView.tintColor = .white
+        if #available(iOS 13.0, *) {
+            trophyImageView.image = UIImage(systemName: "trophy.fill")
+        }
+        contentView.addSubview(trophyImageView)
+        
+        // Title label with custom styling
         let titleLabel = UILabel()
         titleLabel.text = "Online Quiz Bitti"
-        titleLabel.font = .systemFont(ofSize: 28, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 32, weight: .bold)
         titleLabel.textAlignment = .center
-        titleLabel.textColor = .label
+        titleLabel.textColor = .white
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(titleLabel)
         
-        // Sonuç container view
+        // Result card container
         let resultContainer = UIView()
-        resultContainer.backgroundColor = .secondarySystemBackground
-        resultContainer.layer.cornerRadius = 16
+        resultContainer.backgroundColor = .systemBackground
+        resultContainer.layer.cornerRadius = 24
+        resultContainer.clipsToBounds = true
+        resultContainer.layer.masksToBounds = false
+        resultContainer.layer.shadowColor = UIColor.black.cgColor
+        resultContainer.layer.shadowOffset = CGSize(width: 0, height: 4)
+        resultContainer.layer.shadowRadius = 12
+        resultContainer.layer.shadowOpacity = 0.3
+        resultContainer.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(resultContainer)
         
-        // Sonuç metni etiketi
+        // Result content
         let resultLabel = UILabel()
         resultLabel.attributedText = getFormattedGameResultMessage(from: finalGame)
         resultLabel.numberOfLines = 0
-        resultLabel.font = .systemFont(ofSize: 18)
-        resultLabel.textColor = .label
+        resultLabel.translatesAutoresizingMaskIntoConstraints = false
+        resultContainer.addSubview(resultLabel)
         
-        // Profile butonu
+        // Modern profile button
         let profileButton = UIButton(type: .system)
         profileButton.setTitle("Profili Görüntüle", for: .normal)
-        profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        profileButton.backgroundColor = .systemBlue
-        profileButton.setTitleColor(.white, for: .normal)
-        profileButton.layer.cornerRadius = 12
+        profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        profileButton.backgroundColor = .white
+        profileButton.setTitleColor(.systemIndigo, for: .normal)
+        profileButton.layer.cornerRadius = 25
+        profileButton.clipsToBounds = true
+        profileButton.layer.masksToBounds = false
+        profileButton.layer.shadowColor = UIColor.black.cgColor
+        profileButton.layer.shadowOffset = CGSize(width: 0, height: 4)
+        profileButton.layer.shadowRadius = 8
+        profileButton.layer.shadowOpacity = 0.2
+        profileButton.translatesAutoresizingMaskIntoConstraints = false
         profileButton.addTarget(self, action: #selector(self.goToProfile), for: .touchUpInside)
+        contentView.addSubview(profileButton)
         
-        // View'ları ekle
-        [titleLabel, resultContainer, profileButton].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            resultVC.view.addSubview($0)
-        }
-        
-        resultContainer.addSubview(resultLabel)
-        resultLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Constraint'leri ayarla
+        // Constraints
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.topAnchor, constant: 40),
-            titleLabel.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+            contentView.topAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.bottomAnchor),
             
-            resultContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
-            resultContainer.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 20),
-            resultContainer.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -20),
+            trophyImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            trophyImageView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            trophyImageView.heightAnchor.constraint(equalToConstant: 80),
+            trophyImageView.widthAnchor.constraint(equalToConstant: 80),
             
-            resultLabel.topAnchor.constraint(equalTo: resultContainer.topAnchor, constant: 20),
-            resultLabel.leadingAnchor.constraint(equalTo: resultContainer.leadingAnchor, constant: 20),
-            resultLabel.trailingAnchor.constraint(equalTo: resultContainer.trailingAnchor, constant: -20),
-            resultLabel.bottomAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: -20),
+            titleLabel.topAnchor.constraint(equalTo: trophyImageView.bottomAnchor, constant: 20),
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
-            profileButton.bottomAnchor.constraint(equalTo: resultVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
-            profileButton.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 40),
-            profileButton.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -40),
-            profileButton.heightAnchor.constraint(equalToConstant: 50)
+            resultContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 30),
+            resultContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            resultContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            
+            resultLabel.topAnchor.constraint(equalTo: resultContainer.topAnchor, constant: 24),
+            resultLabel.leadingAnchor.constraint(equalTo: resultContainer.leadingAnchor, constant: 24),
+            resultLabel.trailingAnchor.constraint(equalTo: resultContainer.trailingAnchor, constant: -24),
+            resultLabel.bottomAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: -24),
+            
+            profileButton.topAnchor.constraint(equalTo: resultContainer.bottomAnchor, constant: 40),
+            profileButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
+            profileButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
+            profileButton.heightAnchor.constraint(equalToConstant: 50),
+            profileButton.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -20)
         ])
         
-        present(resultVC, animated: true)
+        // Add presentation animation
+        resultVC.modalTransitionStyle = .crossDissolve
+        present(resultVC, animated: true) {
+            // Animate trophy image
+            trophyImageView.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+            UIView.animate(withDuration: 0.6, delay: 0.1, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.5, options: [], animations: {
+                trophyImageView.transform = .identity
+            })
+            
+            // Animate result container
+            resultContainer.transform = CGAffineTransform(translationX: 0, y: 50)
+            resultContainer.alpha = 0
+            UIView.animate(withDuration: 0.6, delay: 0.3, options: .curveEaseOut, animations: {
+                resultContainer.transform = .identity
+                resultContainer.alpha = 1
+            })
+            
+            // Animate profile button
+            profileButton.transform = CGAffineTransform(translationX: 0, y: 50)
+            profileButton.alpha = 0
+            UIView.animate(withDuration: 0.6, delay: 0.5, options: .curveEaseOut, animations: {
+                profileButton.transform = .identity
+                profileButton.alpha = 1
+            })
+        }
     }
     
     private func getFormattedGameResultMessage(from finalGame: MultiplayerGame) -> NSAttributedString {
@@ -643,30 +711,35 @@ class MultiplayerGameViewController: UIViewController {
         
         let resultText = NSMutableAttributedString()
         
-        // Stil tanımlamaları
+        // Style definitions
         let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 24, weight: .bold),
-            .foregroundColor: UIColor.label
+            .font: UIFont.systemFont(ofSize: 28, weight: .heavy),
+            .foregroundColor: UIColor.systemIndigo
         ]
         
         let playerNameAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+            .foregroundColor: UIColor.label
+        ]
+        
+        let statsLabelAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 17, weight: .medium),
+            .foregroundColor: UIColor.secondaryLabel
+        ]
+        
+        let statsValueAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 20, weight: .bold),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.systemIndigo
         ]
         
-        let statsAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 18, weight: .regular),
-            .foregroundColor: UIColor.label
-        ]
-        
-        // Mevcut oyuncunun bilgileri
+        // Current player info
         let currentPlayerName = currentUserId == finalGame.creatorId ? finalGame.creatorName : finalGame.invitedName
         let currentPlayerStats = finalGame.playerScores[currentUserId]
         let currentPlayerScore = currentPlayerStats?.score ?? 0
         let currentPlayerCorrect = currentPlayerStats?.correctAnswers ?? 0
         let currentPlayerWrong = currentPlayerStats?.wrongAnswers ?? 0
         
-        // Rakip oyuncunun bilgileri
+        // Opponent info
         let opponentId = finalGame.creatorId == currentUserId ? finalGame.invitedId : finalGame.creatorId
         let opponentName = currentUserId == finalGame.creatorId ? finalGame.invitedName : finalGame.creatorName
         let opponentStats = finalGame.playerScores[opponentId]
@@ -674,30 +747,37 @@ class MultiplayerGameViewController: UIViewController {
         let opponentCorrect = opponentStats?.correctAnswers ?? 0
         let opponentWrong = opponentStats?.wrongAnswers ?? 0
         
-        // Kazanan/Kaybeden durumunu belirle
-        let resultStatus: String
-        if currentPlayerScore > opponentScore {
-            resultStatus = "🎉 Tebrikler! Kazandınız!"
-        } else if currentPlayerScore < opponentScore {
-            resultStatus = "😔 Maalesef kaybettiniz."
-        } else {
-            resultStatus = "🤝 Berabere kaldınız!"
-        }
+        // Determine winner/loser status and emoji
+        let (resultStatus, emoji) = {
+            if currentPlayerScore > opponentScore {
+                return ("Tebrikler! Kazandınız!", "🏆")
+            } else if currentPlayerScore < opponentScore {
+                return ("Maalesef kaybettiniz.", "😔")
+            } else {
+                return ("Berabere kaldınız!", "🤝")
+            }
+        }()
         
-        // Sonuç metnini oluştur
-        resultText.append(NSAttributedString(string: resultStatus + "\n\n", attributes: titleAttributes))
+        // Add result status with emoji
+        resultText.append(NSAttributedString(string: emoji + " " + resultStatus + "\n\n", attributes: titleAttributes))
         
-        // Mevcut oyuncu bilgileri
-        resultText.append(NSAttributedString(string: currentPlayerName.uppercased() + "\n", attributes: playerNameAttributes))
-        resultText.append(NSAttributedString(string: "▸ Puan: \(currentPlayerScore) pts\n", attributes: statsAttributes))
-        resultText.append(NSAttributedString(string: "▸ Doğru: \(currentPlayerCorrect)\n", attributes: statsAttributes))
-        resultText.append(NSAttributedString(string: "▸ Yanlış: \(currentPlayerWrong)\n\n", attributes: statsAttributes))
+        // Add current player stats
+        resultText.append(NSAttributedString(string: "👤 " + currentPlayerName.uppercased() + "\n", attributes: playerNameAttributes))
+        resultText.append(NSAttributedString(string: "Puan: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(currentPlayerScore) pts\n", attributes: statsValueAttributes))
+        resultText.append(NSAttributedString(string: "Doğru: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(currentPlayerCorrect)\n", attributes: statsValueAttributes))
+        resultText.append(NSAttributedString(string: "Yanlış: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(currentPlayerWrong)\n\n", attributes: statsValueAttributes))
         
-        // Rakip oyuncu bilgileri
-        resultText.append(NSAttributedString(string: opponentName.uppercased() + "\n", attributes: playerNameAttributes))
-        resultText.append(NSAttributedString(string: "▸ Puan: \(opponentScore) pts\n", attributes: statsAttributes))
-        resultText.append(NSAttributedString(string: "▸ Doğru: \(opponentCorrect)\n", attributes: statsAttributes))
-        resultText.append(NSAttributedString(string: "▸ Yanlış: \(opponentWrong)", attributes: statsAttributes))
+        // Add opponent stats
+        resultText.append(NSAttributedString(string: "👤 " + opponentName.uppercased() + "\n", attributes: playerNameAttributes))
+        resultText.append(NSAttributedString(string: "Puan: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(opponentScore) pts\n", attributes: statsValueAttributes))
+        resultText.append(NSAttributedString(string: "Doğru: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(opponentCorrect)\n", attributes: statsValueAttributes))
+        resultText.append(NSAttributedString(string: "Yanlış: ", attributes: statsLabelAttributes))
+        resultText.append(NSAttributedString(string: "\(opponentWrong)", attributes: statsValueAttributes))
         
         return resultText
     }
