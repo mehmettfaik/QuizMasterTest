@@ -187,7 +187,7 @@ class ProfileViewController: UIViewController {
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = .primaryPurple
         button.layer.cornerRadius = 20
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         button.layer.shadowColor = UIColor.primaryPurple.cgColor
         button.layer.shadowOffset = CGSize(width: 0, height: 4)
         button.layer.shadowOpacity = 0.3
@@ -202,7 +202,7 @@ class ProfileViewController: UIViewController {
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = .systemGreen
         button.layer.cornerRadius = 20
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         button.layer.shadowColor = UIColor.systemGreen.cgColor
         button.layer.shadowOffset = CGSize(width: 0, height: 4)
         button.layer.shadowOpacity = 0.3
@@ -262,10 +262,10 @@ class ProfileViewController: UIViewController {
         contentView.addSubview(nameLabel)
         contentView.addSubview(emailLabel)
         contentView.addSubview(friendsButton)
+        contentView.addSubview(onlineButton)
         contentView.addSubview(achievementsLabel)
         contentView.addSubview(achievementsCollectionView)
         contentView.addSubview(loadingIndicator)
-        contentView.addSubview(onlineButton)
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -293,11 +293,16 @@ class ProfileViewController: UIViewController {
             emailLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
             friendsButton.topAnchor.constraint(equalTo: emailLabel.bottomAnchor, constant: 40),
-            friendsButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            friendsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30),
-            friendsButton.heightAnchor.constraint(equalToConstant: 60),
+            friendsButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            friendsButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
+            friendsButton.heightAnchor.constraint(equalToConstant: 50),
             
-            achievementsLabel.topAnchor.constraint(equalTo: friendsButton.bottomAnchor, constant: 50),
+            onlineButton.topAnchor.constraint(equalTo: emailLabel.bottomAnchor, constant: 40),
+            onlineButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            onlineButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
+            onlineButton.heightAnchor.constraint(equalToConstant: 50),
+            
+            achievementsLabel.topAnchor.constraint(equalTo: friendsButton.bottomAnchor, constant: 40),
             achievementsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             achievementsLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
@@ -308,11 +313,6 @@ class ProfileViewController: UIViewController {
             
             loadingIndicator.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            
-            onlineButton.topAnchor.constraint(equalTo: friendsButton.bottomAnchor, constant: 16),
-            onlineButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            onlineButton.widthAnchor.constraint(equalToConstant: 200),
-            onlineButton.heightAnchor.constraint(equalToConstant: 40)
         ])
         
         // Profil fotoğrafı için placeholder
@@ -735,21 +735,6 @@ class SettingsViewController: UIViewController {
         return table
     }()
     
-    private let signOutButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Çıkış Yap", for: .normal)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = .systemRed
-        button.layer.cornerRadius = 20
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        button.layer.shadowColor = UIColor.systemRed.cgColor
-        button.layer.shadowOffset = CGSize(width: 0, height: 4)
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowRadius = 8
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
     private enum Section: Int, CaseIterable {
         case profile
         case appearance
@@ -785,7 +770,8 @@ class SettingsViewController: UIViewController {
             case .account:
                 return [
                     .init(title: "Şifre Değiştir", icon: "lock.fill"),
-                    .init(title: "Hesabı Sil", icon: "trash.fill", isDestructive: true)
+                    .init(title: "Hesabı Sil", icon: "trash.fill", isDestructive: true),
+                    .init(title: "Çıkış Yap", icon: "rectangle.portrait.and.arrow.right", isDestructive: true)
                 ]
             }
         }
@@ -814,43 +800,17 @@ class SettingsViewController: UIViewController {
         )
         
         view.addSubview(tableView)
-        view.addSubview(signOutButton)
         
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: signOutButton.topAnchor, constant: -20),
-            
-            signOutButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            signOutButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
-            signOutButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            signOutButton.heightAnchor.constraint(equalToConstant: 60)
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "SettingsCell")
-        
-        signOutButton.addTarget(self, action: #selector(signOutTapped), for: .touchUpInside)
-    }
-    
-    @objc private func signOutTapped() {
-        let alert = UIAlertController(
-            title: "Çıkış Yap",
-            message: "Çıkış yapmak istediğinize emin misiniz?",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Çıkış Yap", style: .destructive) { [weak self] _ in
-            self?.viewModel.signOut()
-            let loginVC = LoginViewController()
-            loginVC.modalPresentationStyle = .fullScreen
-            self?.present(loginVC, animated: true)
-        })
-        
-        present(alert, animated: true)
     }
     
     @objc private func closeTapped() {
@@ -1064,6 +1024,24 @@ class SettingsViewController: UIViewController {
         present(alert, animated: true)
     }
     
+    private func handleSignOut() {
+        let alert = UIAlertController(
+            title: "Çıkış Yap",
+            message: "Çıkış yapmak istediğinize emin misiniz?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "İptal", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Çıkış Yap", style: .destructive) { [weak self] _ in
+            self?.viewModel.signOut()
+            let loginVC = LoginViewController()
+            loginVC.modalPresentationStyle = .fullScreen
+            self?.present(loginVC, animated: true)
+        })
+        
+        present(alert, animated: true)
+    }
+    
     private func showSuccessAlert(message: String) {
         let alert = UIAlertController(
             title: "Başarılı",
@@ -1135,6 +1113,8 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
             handlePasswordChange()
         case (.account, 1): // Hesap Silme
             handleAccountDeletion()
+        case (.account, 2): // Çıkış Yap
+            handleSignOut()
         default:
             break
         }
