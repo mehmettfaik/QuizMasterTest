@@ -2,6 +2,85 @@ import UIKit
 import FirebaseAuth
 import FirebaseFirestore
 
+// Add CircularTimerView class before MultiplayerGameViewController
+class CircularTimerView: UIView {
+    private let progressLayer = CAShapeLayer()
+    private let backgroundLayer = CAShapeLayer()
+    private let timeLabel = UILabel()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupView()
+    }
+    
+    private func setupView() {
+        // Background circle
+        let backgroundPath = UIBezierPath(arcCenter: CGPoint(x: bounds.midX, y: bounds.midY),
+                                        radius: bounds.width/2 - 10,
+                                        startAngle: -(.pi/2),
+                                        endAngle: 2 * .pi - .pi/2,
+                                        clockwise: true)
+        
+        backgroundLayer.path = backgroundPath.cgPath
+        backgroundLayer.fillColor = UIColor.clear.cgColor
+        backgroundLayer.strokeColor = UIColor.systemGray5.cgColor
+        backgroundLayer.lineWidth = 8
+        backgroundLayer.lineCap = .round
+        layer.addSublayer(backgroundLayer)
+        
+        // Progress circle
+        progressLayer.path = backgroundPath.cgPath
+        progressLayer.fillColor = UIColor.clear.cgColor
+        progressLayer.strokeColor = UIColor.primaryPurple.cgColor
+        progressLayer.lineWidth = 8
+        progressLayer.lineCap = .round
+        progressLayer.strokeEnd = 1
+        layer.addSublayer(progressLayer)
+        
+        // Time label
+        timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        timeLabel.textAlignment = .center
+        timeLabel.font = .systemFont(ofSize: 32, weight: .bold)
+        timeLabel.textColor = .primaryPurple
+        addSubview(timeLabel)
+        
+        NSLayoutConstraint.activate([
+            timeLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        let backgroundPath = UIBezierPath(arcCenter: CGPoint(x: bounds.midX, y: bounds.midY),
+                                        radius: bounds.width/2 - 10,
+                                        startAngle: -(.pi/2),
+                                        endAngle: 2 * .pi - .pi/2,
+                                        clockwise: true)
+        
+        backgroundLayer.path = backgroundPath.cgPath
+        progressLayer.path = backgroundPath.cgPath
+    }
+    
+    func updateTime(timeLeft: Int, totalTime: Int) {
+        timeLabel.text = "\(timeLeft)"
+        
+        let progress = CGFloat(timeLeft) / CGFloat(totalTime)
+        progressLayer.strokeEnd = progress
+        
+        // Update colors based on time left using purple shades
+        let color = progress > 0.5 ? UIColor.primaryPurple : (progress > 0.2 ? UIColor.systemPurple : UIColor.systemPurple.withAlphaComponent(0.6))
+        progressLayer.strokeColor = color.cgColor
+        timeLabel.textColor = color
+    }
+}
+
 class MultiplayerGameViewController: UIViewController {
     private var game: MultiplayerGame
     private let multiplayerService = MultiplayerGameService.shared
@@ -16,10 +95,20 @@ class MultiplayerGameViewController: UIViewController {
     
     private var selectedButton: UIButton?
     
+    private let circularTimerView: CircularTimerView = {
+        let view = CircularTimerView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
     private let questionContainerView: UIView = {
         let view = UIView()
-        view.backgroundColor = .secondarySystemGroupedBackground
-        view.layer.cornerRadius = 16
+        view.backgroundColor = .systemBackground
+        view.layer.cornerRadius = 20
+        view.layer.shadowColor = UIColor.primaryPurple.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 4)
+        view.layer.shadowRadius = 12
+        view.layer.shadowOpacity = 0.2
         return view
     }()
     
@@ -28,14 +117,9 @@ class MultiplayerGameViewController: UIViewController {
         label.numberOfLines = 0
         label.textAlignment = .center
         label.font = .systemFont(ofSize: 20, weight: .bold)
-        return label
-    }()
-    
-    private let timerLabel: UILabel = {
-        let label = UILabel()
-        label.textAlignment = .center
-        label.font = .systemFont(ofSize: 32, weight: .bold)
-        label.textColor = .systemBlue
+        label.textColor = .primaryPurple
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.7
         return label
     }()
     
@@ -81,7 +165,7 @@ class MultiplayerGameViewController: UIViewController {
         label.text = "VS"
         label.textAlignment = .center
         label.font = .systemFont(ofSize: 16, weight: .black)
-        label.textColor = .systemRed
+        label.textColor = .primaryPurple
         return label
     }()
     
@@ -131,10 +215,10 @@ class MultiplayerGameViewController: UIViewController {
     
     private func setupUI() {
         title = "Multiplayer Quiz"
-        view.backgroundColor = .systemGroupedBackground
+        view.backgroundColor = UIColor.primaryPurple.withAlphaComponent(0.1)
         
         // Add subviews
-        [timerLabel, scoreView, questionContainerView, answerStackView].forEach {
+        [circularTimerView, scoreView, questionContainerView, answerStackView].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -150,10 +234,12 @@ class MultiplayerGameViewController: UIViewController {
         scoreStackView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            timerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            timerLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            circularTimerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            circularTimerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            circularTimerView.widthAnchor.constraint(equalToConstant: 120),
+            circularTimerView.heightAnchor.constraint(equalToConstant: 120),
             
-            scoreView.topAnchor.constraint(equalTo: timerLabel.bottomAnchor, constant: 20),
+            scoreView.topAnchor.constraint(equalTo: circularTimerView.bottomAnchor, constant: 20),
             scoreView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             scoreView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             scoreView.heightAnchor.constraint(equalToConstant: 100),
@@ -166,13 +252,14 @@ class MultiplayerGameViewController: UIViewController {
             questionContainerView.topAnchor.constraint(equalTo: scoreView.bottomAnchor, constant: 24),
             questionContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             questionContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            questionContainerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 120), // Minimum height
             
             questionLabel.topAnchor.constraint(equalTo: questionContainerView.topAnchor, constant: 24),
-            questionLabel.leadingAnchor.constraint(equalTo: questionContainerView.leadingAnchor, constant: 16),
-            questionLabel.trailingAnchor.constraint(equalTo: questionContainerView.trailingAnchor, constant: -16),
+            questionLabel.leadingAnchor.constraint(equalTo: questionContainerView.leadingAnchor, constant: 24),
+            questionLabel.trailingAnchor.constraint(equalTo: questionContainerView.trailingAnchor, constant: -24),
             questionLabel.bottomAnchor.constraint(equalTo: questionContainerView.bottomAnchor, constant: -24),
             
-            answerStackView.topAnchor.constraint(equalTo: questionContainerView.bottomAnchor, constant: 24),
+            answerStackView.topAnchor.constraint(equalTo: questionContainerView.bottomAnchor, constant: 32),
             answerStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             answerStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             answerStackView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24)
@@ -297,21 +384,27 @@ class MultiplayerGameViewController: UIViewController {
                 let button = UIButton(type: .system)
                 button.setTitle(option, for: .normal)
                 button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
-                button.backgroundColor = .systemBlue
-                button.setTitleColor(.white, for: .normal)
-                button.layer.cornerRadius = 12
+                button.titleLabel?.numberOfLines = 2
+                button.titleLabel?.adjustsFontSizeToFitWidth = true
+                button.titleLabel?.minimumScaleFactor = 0.8
+                button.backgroundColor = .systemBackground
+                button.setTitleColor(.primaryPurple, for: .normal)
+                button.layer.cornerRadius = 16
+                button.layer.borderWidth = 2
+                button.layer.borderColor = UIColor.primaryPurple.cgColor
                 
                 // Add shadow
-                button.layer.shadowColor = UIColor.black.cgColor
+                button.layer.shadowColor = UIColor.primaryPurple.cgColor
                 button.layer.shadowOffset = CGSize(width: 0, height: 2)
-                button.layer.shadowRadius = 4
-                button.layer.shadowOpacity = 0.1
+                button.layer.shadowRadius = 6
+                button.layer.shadowOpacity = 0.2
                 
-                button.heightAnchor.constraint(equalToConstant: 56).isActive = true
+                button.heightAnchor.constraint(equalToConstant: 60).isActive = true
                 button.addTarget(self, action: #selector(self.answerButtonTapped(_:)), for: .touchUpInside)
                 self.answerStackView.addArrangedSubview(button)
             }
             
+            self.answerStackView.spacing = 16
             self.startTimer()
             self.setupAnswerListener()
         }
@@ -426,7 +519,7 @@ class MultiplayerGameViewController: UIViewController {
     }
     
     private func updateTimerLabel() {
-        timerLabel.text = "Time: \(timeLeft)s"
+        circularTimerView.updateTime(timeLeft: timeLeft, totalTime: 5)
     }
     
     private func animateScoreChange(for label: UILabel, from oldScore: Int, to newScore: Int) {
@@ -463,11 +556,13 @@ class MultiplayerGameViewController: UIViewController {
     
     private func highlightSelectedButton(_ button: UIButton) {
         // Reset previous button
-        selectedButton?.backgroundColor = .systemBlue
+        selectedButton?.backgroundColor = .systemBackground
+        selectedButton?.setTitleColor(.primaryPurple, for: .normal)
         selectedButton?.transform = .identity
         
         // Highlight new button
-        button.backgroundColor = .systemIndigo
+        button.backgroundColor = .primaryPurple
+        button.setTitleColor(.white, for: .normal)
         
         // Add animation
         UIView.animate(withDuration: 0.2) {
@@ -486,6 +581,7 @@ class MultiplayerGameViewController: UIViewController {
                 button.isEnabled = false
                 if button != selectedButton {
                     button.alpha = 0.5
+                    button.backgroundColor = UIColor.primaryPurple.withAlphaComponent(0.1)
                 }
             }
         }
@@ -503,7 +599,7 @@ class MultiplayerGameViewController: UIViewController {
         hasAnsweredCurrentQuestion = true
         selectedButton = button
         
-        button.backgroundColor = .systemIndigo
+        button.backgroundColor = .primaryPurple
         
         answerStackView.arrangedSubviews.forEach { view in
             guard let otherButton = view as? UIButton else { return }
@@ -578,7 +674,7 @@ class MultiplayerGameViewController: UIViewController {
         // Gradient background
         let gradientLayer = CAGradientLayer()
         gradientLayer.colors = [
-            UIColor.systemIndigo.cgColor,
+            UIColor.primaryPurple.cgColor,
             UIColor.systemPurple.cgColor
         ]
         gradientLayer.locations = [0.0, 1.0]
@@ -635,7 +731,7 @@ class MultiplayerGameViewController: UIViewController {
         profileButton.setTitle("Profili Görüntüle", for: .normal)
         profileButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
         profileButton.backgroundColor = .white
-        profileButton.setTitleColor(.systemIndigo, for: .normal)
+        profileButton.setTitleColor(.primaryPurple, for: .normal)
         profileButton.layer.cornerRadius = 25
         profileButton.clipsToBounds = true
         profileButton.layer.masksToBounds = false
@@ -714,7 +810,7 @@ class MultiplayerGameViewController: UIViewController {
         // Style definitions
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 28, weight: .heavy),
-            .foregroundColor: UIColor.systemIndigo
+            .foregroundColor: UIColor.primaryPurple
         ]
         
         let playerNameAttributes: [NSAttributedString.Key: Any] = [
@@ -729,7 +825,7 @@ class MultiplayerGameViewController: UIViewController {
         
         let statsValueAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 20, weight: .bold),
-            .foregroundColor: UIColor.systemIndigo
+            .foregroundColor: UIColor.primaryPurple
         ]
         
         // Current player info
