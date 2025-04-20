@@ -165,6 +165,11 @@ class QuizViewController: UIViewController {
         progressContainer.translatesAutoresizingMaskIntoConstraints = false
         progressContainer.backgroundColor = .clear
         
+        // Stack view ayarları
+        optionsStackView.axis = .vertical
+        optionsStackView.spacing = 16
+        optionsStackView.distribution = .fill
+        
         view.addSubview(topContainer)
         topContainer.addSubview(backButton)
         topContainer.addSubview(progressContainer)
@@ -210,6 +215,7 @@ class QuizViewController: UIViewController {
             progressLabel.trailingAnchor.constraint(equalTo: progressContainer.trailingAnchor),
             progressLabel.widthAnchor.constraint(equalToConstant: 50),
             
+            // Timer container constraints
             timerContainer.topAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: 24),
             timerContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             timerContainer.widthAnchor.constraint(equalToConstant: 60),
@@ -218,7 +224,8 @@ class QuizViewController: UIViewController {
             timerLabel.centerXAnchor.constraint(equalTo: timerContainer.centerXAnchor),
             timerLabel.centerYAnchor.constraint(equalTo: timerContainer.centerYAnchor),
             
-            questionContainer.topAnchor.constraint(equalTo: timerContainer.bottomAnchor, constant: 32),
+            // Question container constraints
+            questionContainer.topAnchor.constraint(equalTo: timerContainer.bottomAnchor, constant: 24),
             questionContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             questionContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             
@@ -227,9 +234,11 @@ class QuizViewController: UIViewController {
             questionLabel.trailingAnchor.constraint(equalTo: questionContainer.trailingAnchor, constant: -24),
             questionLabel.bottomAnchor.constraint(equalTo: questionContainer.bottomAnchor, constant: -24),
             
+            // Options stack view constraints
             optionsStackView.topAnchor.constraint(equalTo: questionContainer.bottomAnchor, constant: 32),
             optionsStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             optionsStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            optionsStackView.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
             
             askGPTButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             askGPTButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
@@ -315,8 +324,8 @@ class QuizViewController: UIViewController {
         button.layer.borderWidth = 1.5
         button.layer.borderColor = UIColor.systemGray4.cgColor
         
-        // Yükseklik constraint'i
-        button.heightAnchor.constraint(equalToConstant: 56).isActive = true
+        // Minimum yükseklik constraint'i
+        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 56).isActive = true
         
         return button
     }

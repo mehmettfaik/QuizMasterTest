@@ -203,6 +203,18 @@ class MultiplayerGameViewController: UIViewController {
         setupUI()
         setupGameListener()
         loadQuestion(at: game.currentQuestionIndex)
+        
+        // Navigation bar düzenlemeleri
+        title = "Multiplayer Quiz"
+        navigationController?.navigationBar.titleTextAttributes = [
+            NSAttributedString.Key.foregroundColor: UIColor.primaryPurple,
+            NSAttributedString.Key.font: UIFont.systemFont(ofSize: 18, weight: .bold)
+        ]
+        
+        // Geri butonu düzenlemeleri
+        let backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backButtonTapped))
+        backButton.tintColor = .primaryPurple
+        navigationItem.leftBarButtonItem = backButton
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -883,6 +895,10 @@ class MultiplayerGameViewController: UIViewController {
         dismiss(animated: true) { [weak self] in
             self?.navigationController?.popToRootViewController(animated: true)
         }
+    }
+    
+    @objc private func backButtonTapped() {
+        navigationController?.popViewController(animated: true)
     }
 }
 
