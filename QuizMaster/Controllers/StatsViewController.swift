@@ -179,6 +179,34 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
         return view
     }()
     
+    private let noDataView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .white
+        view.isHidden = true
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let noDataImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.image = UIImage(systemName: "chart.bar.xaxis")
+        imageView.contentMode = .scaleAspectFit
+        imageView.tintColor = .primaryPurple
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        return imageView
+    }()
+    
+    private let noDataLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Lütfen istatistik verilerinin görünmesi için bir quiz çözün"
+        label.textColor = .darkGray
+        label.font = .systemFont(ofSize: 16)
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private let pieChartView: PieChartView = {
         let chartView = PieChartView()
         chartView.translatesAutoresizingMaskIntoConstraints = false
@@ -262,8 +290,12 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
         // Add loading indicator to the main view so it's always visible
         view.addSubview(loadingIndicator)
         
-        // Add stats view to the content view (scrollable area)
+        // Add stats view and no data view to the content view
         contentView.addSubview(statsView)
+        contentView.addSubview(noDataView)
+        noDataView.addSubview(noDataImageView)
+        noDataView.addSubview(noDataLabel)
+        
         statsView.addSubview(pieChartView)
         statsView.addSubview(categoryLabel)
         statsView.addSubview(lineChartView)
@@ -401,7 +433,23 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
             lineChartView.leadingAnchor.constraint(equalTo: statsView.leadingAnchor, constant: 20),
             lineChartView.trailingAnchor.constraint(equalTo: statsView.trailingAnchor, constant: -20),
             lineChartView.heightAnchor.constraint(equalToConstant: 200),
-            lineChartView.bottomAnchor.constraint(lessThanOrEqualTo: statsView.bottomAnchor, constant: -20)
+            lineChartView.bottomAnchor.constraint(lessThanOrEqualTo: statsView.bottomAnchor, constant: -20),
+            
+            // No Data View constraints
+            noDataView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            noDataView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            noDataView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            noDataView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
+            
+            noDataImageView.centerXAnchor.constraint(equalTo: noDataView.centerXAnchor),
+            noDataImageView.centerYAnchor.constraint(equalTo: noDataView.centerYAnchor, constant: -40),
+            noDataImageView.widthAnchor.constraint(equalToConstant: 80),
+            noDataImageView.heightAnchor.constraint(equalToConstant: 80),
+            
+            noDataLabel.topAnchor.constraint(equalTo: noDataImageView.bottomAnchor, constant: 20),
+            noDataLabel.leadingAnchor.constraint(equalTo: noDataView.leadingAnchor, constant: 20),
+            noDataLabel.trailingAnchor.constraint(equalTo: noDataView.trailingAnchor, constant: -20),
+            noDataLabel.centerXAnchor.constraint(equalTo: noDataView.centerXAnchor),
         ])
         
         // Set a height constraint for the content view based on the statsView
@@ -657,6 +705,9 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
             .receive(on: DispatchQueue.main)
             .sink { [weak self] quizzes in
                 self?.quizzesValueLabel.text = "\(quizzes)"
+                // Eğer quiz çözülmemişse noDataView'ı göster, statsView'ı gizle
+                self?.noDataView.isHidden = quizzes > 0
+                self?.statsView.isHidden = quizzes == 0
             }
             .store(in: &cancellables)
     }
