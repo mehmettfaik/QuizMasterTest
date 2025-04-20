@@ -58,6 +58,7 @@
 "correct" = "Doğru";
 "wrong" = "Yanlış";
 "score" = "Puan";
+"stats_warning" = "Lütfen istatistik verilerinin görünmesi için bir quiz çözün";
 
 // Search
 "search" = "Ara...";
@@ -147,6 +148,7 @@
 
 // Online
 "online_users" = "Online Kullanıcılar";
+"friend_warning" = "Şu anda uygulamadaki hiçbir kullanıcı çevrimiçi değil!";
 
 
 // FriendView
@@ -154,6 +156,7 @@
 "friend_requests" = "Arkadaşlık İstekleri";
 "search_by_email" = "Email ile ara... ";
 "no_results_yet" = "Henüz bir sonuç yok";
+"no_friends_yet" = "Henüz arkadaşınız yok";
 
 "error_title" = "Hata";
 "success_title" = "Başarılı";

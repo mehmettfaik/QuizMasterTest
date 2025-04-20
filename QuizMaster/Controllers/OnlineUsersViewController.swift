@@ -28,6 +28,18 @@ class OnlineUsersViewController: UIViewController {
         return view
     }()
     
+    private let warningLabel: UILabel = {
+        let label = UILabel()
+        label.text = LanguageManager.shared.localizedString(for: "friend_warning")
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.textColor = .gray
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.isHidden = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private let titleLabel: UILabel = { 
         let label = UILabel()
         label.text = LanguageManager.shared.localizedString(for: "online_users")
@@ -102,6 +114,7 @@ class OnlineUsersViewController: UIViewController {
         view.addSubview(containerView)
         containerView.addSubview(titleLabel)
         containerView.addSubview(tableView)
+        containerView.addSubview(warningLabel)
         
         tableView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -118,7 +131,12 @@ class OnlineUsersViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 15),
             tableView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 25),
             tableView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -25),
-            tableView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -15)
+            tableView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -15),
+            
+            warningLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            warningLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            warningLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 30),
+            warningLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -30)
         ])
         
         tableView.delegate = self
@@ -135,6 +153,8 @@ class OnlineUsersViewController: UIViewController {
             DispatchQueue.main.async {
                 self?.onlineUsers = users.filter { $0.id != Auth.auth().currentUser?.uid }
                 self?.tableView.reloadData()
+                self?.warningLabel.isHidden = !(self?.onlineUsers.isEmpty ?? true)
+                self?.tableView.isHidden = self?.onlineUsers.isEmpty ?? true
             }
         }
     }

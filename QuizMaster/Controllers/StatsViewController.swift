@@ -198,7 +198,7 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
     
     private let noDataLabel: UILabel = {
         let label = UILabel()
-        label.text = "Lütfen istatistik verilerinin görünmesi için bir quiz çözün"
+        label.text = LanguageManager.shared.localizedString(for: "stats_warning")
         label.textColor = .darkGray
         label.font = .systemFont(ofSize: 16)
         label.textAlignment = .center

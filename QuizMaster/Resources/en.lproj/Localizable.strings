@@ -58,6 +58,7 @@
 "correct" = "Correct";
 "wrong" = "Wrong";
 "score" = "Score";
+"stats_warning" = "You need to complete a quiz to view your stats";
 
 // Search
 "search" = "Search...";
@@ -164,12 +165,14 @@
 
 // Online
 "online_users" = "Online Users";
+"friend_warning" = "Currently, there are no users online in the app!";
 
 // FriendView
 "add_friend" = "Add Friend";
 "friend_requests" = "Friend Requests";
 "search_by_email" = "Search by Email... ";
 "no_results_yet" = "No results yet";
+"no_friends_yet" = "No friend yet";
 
 "error_title" = "Error";
 "success_title" = "Success";
