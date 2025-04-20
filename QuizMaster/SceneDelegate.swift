@@ -219,11 +219,35 @@ class MainTabBarController: UITabBarController {
         
         let profileNav = UINavigationController(rootViewController: profileVC)
         
-        homeVC.tabBarItem = UITabBarItem(title: "Ana Sayfa", image: UIImage(systemName: "house"), selectedImage: UIImage(systemName: "house.fill"))
-        searchVC.tabBarItem = UITabBarItem(title: "Keşfet", image: UIImage(systemName: "magnifyingglass"), selectedImage: UIImage(systemName: "magnifyingglass"))
-        createVC.tabBarItem = UITabBarItem(title: "", image: nil, selectedImage: nil)
-        statsVC.tabBarItem = UITabBarItem(title: "İstatistik", image: UIImage(systemName: "chart.bar"), selectedImage: UIImage(systemName: "chart.bar.fill"))
-        profileNav.tabBarItem = UITabBarItem(title: "Profil", image: UIImage(systemName: "person"), selectedImage: UIImage(systemName: "person.fill"))
+        homeVC.tabBarItem = UITabBarItem(
+            title: LanguageManager.shared.localizedString(for: "tab_home"),
+            image: UIImage(systemName: "house"),
+            selectedImage: UIImage(systemName: "house.fill")
+        )
+        
+        searchVC.tabBarItem = UITabBarItem(
+            title: LanguageManager.shared.localizedString(for: "tab_explore"),
+            image: UIImage(systemName: "magnifyingglass"),
+            selectedImage: UIImage(systemName: "magnifyingglass")
+        )
+        
+        createVC.tabBarItem = UITabBarItem(
+            title: "",
+            image: nil,
+            selectedImage: nil
+        )
+        
+        statsVC.tabBarItem = UITabBarItem(
+            title: LanguageManager.shared.localizedString(for: "tab_statistics"),
+            image: UIImage(systemName: "chart.bar"),
+            selectedImage: UIImage(systemName: "chart.bar.fill")
+        )
+        
+        profileNav.tabBarItem = UITabBarItem(
+            title: LanguageManager.shared.localizedString(for: "tab_profile"),
+            image: UIImage(systemName: "person"),
+            selectedImage: UIImage(systemName: "person.fill")
+        )
         
         setViewControllers([homeVC, searchVC, createVC, statsVC, profileNav], animated: false)
     }

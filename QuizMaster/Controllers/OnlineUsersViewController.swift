@@ -28,9 +28,9 @@ class OnlineUsersViewController: UIViewController {
         return view
     }()
     
-    private let titleLabel: UILabel = {
+    private let titleLabel: UILabel = { 
         let label = UILabel()
-        label.text = "Online Kullanıcılar"
+        label.text = LanguageManager.shared.localizedString(for: "online_users")
         label.font = .systemFont(ofSize: 24, weight: .bold)
         label.textColor = .primaryPurple
         label.textAlignment = .center
@@ -281,7 +281,7 @@ extension OnlineUsersViewController: UITableViewDelegate, UITableViewDataSource 
         }
         challengeAction.setValue(UIColor.primaryPurple, forKey: "titleTextColor")
         
-        let cancelAction = UIAlertAction(title: "İptal", style: .cancel)
+        let cancelAction = UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel)
         
         alert.addAction(challengeAction)
         alert.addAction(cancelAction)

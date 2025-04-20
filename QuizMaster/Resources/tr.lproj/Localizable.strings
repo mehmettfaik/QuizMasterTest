@@ -26,7 +26,7 @@
 "good_evening" = "İYİ AKŞAMLAR 🌅";
 "good_night" = "İYİ GECELER 🌙";
 "quiz_categories" = "Quiz Kategorileri";
-"ask_ai" = "QuizGPT";
+"ask_ai" = "QuizGPT sor";
 "ai_description" = "Yapay zekamız her şeyi biliyor, yine de şansınızı denemelisiniz!";
 
 // Categories
@@ -121,9 +121,58 @@
 "achievements" = "Başarı Rozetleri";
 "no_badges_yet" =  "Henüz Rozet Yok";
 "earn_badges_message" = "Rozet kazanmak için sınavları çözün!";
+"rookie" = "Çaylak";
+"expert" = "Uzman";
+"legend" = "Efsane";
+"quiz_lover" = "Quiz Sever";
+"quiz_pro" = "Quiz Ustası";
+"elite" = "Elit";
 
 // Quiz
 "start_quiz" = "Sınava Başla";
 "next_question" = "Sonraki Soru";
 "finish_quiz" = "Sınavı Bitir";
-"your_score" = "Puanınız"; 
+"your_score" = "Puanınız";
+
+
+// FriendProfil
+"collect_100_points" = "100 Puan Topla";
+"collect_500_points" = "500 Puan Topla";
+"collect_1000_points" = "1000 Puan Topla";
+"complete_5_quizzes" = "5 Quiz Tamamla";
+"complete_20_quizzes" = "20 Quiz Tamamla";
+"reach_top_10" = "İlk 10'a Gir";
+"point" = "Puan";
+
+
+// Online
+"online_users" = "Online Kullanıcılar";
+
+
+// FriendView
+"add_friend" = "Arkadaş Ekle";
+"friend_requests" = "Arkadaşlık İstekleri";
+"search_by_email" = "Email ile ara... ";
+"no_results_yet" = "Henüz bir sonuç yok";
+
+"error_title" = "Hata";
+"success_title" = "Başarılı";
+"ok_button" = "Tamam";
+"cancel_button" = "İptal";
+"send_button" = "Gönder";
+"friend_request" = "Arkadaşlık İsteği";
+"cant_send_request_to_self" = "Kendinize arkadaşlık isteği gönderemezsiniz.";
+"friend_request_sent_success" = "Arkadaşlık isteği gönderildi.";
+"send_friend_request_confirmation" = "%@ kullanıcısına arkadaşlık isteği göndermek istiyor musunuz?";
+"no_search_results_found" = "Arama Sonucu Bulunamadı";
+"no_pending_requests_found" = "Bekleyen İstek Bulunmuyor";
+
+
+"tab_home" = "Ana Sayfa";
+"tab_explore" = "Keşfet";
+"tab_statistics" = "İstatistik";
+"tab_profile" = "Profil";
+
+
+
+

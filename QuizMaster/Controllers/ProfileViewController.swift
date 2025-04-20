@@ -690,13 +690,26 @@ class AchievementCell: UICollectionViewCell {
         ])
     }
     
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        progressView.progress = 0
+        progressView.isHidden = false
+        progressLabel.isHidden = false
+    }
+    
     func configure(with achievement: AchievementBadge) {
         titleLabel.text = achievement.title
         descriptionLabel.text = achievement.description
         iconImageView.image = UIImage(systemName: achievement.icon)
         iconImageView.tintColor = achievement.isUnlocked ? .primaryPurple : .gray
-        progressView.progress = Float(achievement.progress)
+        
+        // Progress bar'ı güncelle
+        progressView.setProgress(Float(achievement.progress), animated: true)
         progressLabel.text = "\(achievement.currentValue)/\(achievement.requirement)"
+        
+        // Progress bar ve label'ı göster
+        progressView.isHidden = false
+        progressLabel.isHidden = false
         
         // Kilitsiz/kilitli duruma göre opacity ayarla
         containerView.alpha = achievement.isUnlocked ? 1.0 : 0.7
@@ -758,7 +771,6 @@ class SettingsViewController: UIViewController {
                 ]
             case .appearance:
                 return [
-                    .init(title: LanguageManager.shared.localizedString(for: "theme"), icon: "moon.fill"),
                     .init(title: LanguageManager.shared.localizedString(for: "language"), icon: "globe")
                 ]
             case .notifications:
@@ -891,43 +903,6 @@ class SettingsViewController: UIViewController {
             }
         })
         
-        present(alert, animated: true)
-    }
-    
-    private func handleThemeChange() {
-        let alert = UIAlertController(
-            title: LanguageManager.shared.localizedString(for: "select_theme"),
-            message: nil,
-            preferredStyle: .actionSheet
-        )
-        
-        alert.addAction(UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "light_theme"),
-            style: .default
-        ) { [weak self] _ in
-            self?.viewModel.updateTheme(isDark: false)
-        })
-        
-        alert.addAction(UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "dark_theme"),
-            style: .default
-        ) { [weak self] _ in
-            self?.viewModel.updateTheme(isDark: true)
-        })
-        
-        alert.addAction(UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "system_theme"),
-            style: .default
-        ) { _ in
-            if #available(iOS 13.0, *) {
-                let scenes = UIApplication.shared.connectedScenes
-                let windowScene = scenes.first as? UIWindowScene
-                let window = windowScene?.windows.first
-                window?.overrideUserInterfaceStyle = .unspecified
-            }
-        })
-        
-        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
         present(alert, animated: true)
     }
     
@@ -1160,9 +1135,7 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
             handleProfilePhotoChange()
         case (.profile, 1): // İsim Değiştirme
             handleNameChange()
-        case (.appearance, 0): // Tema
-            handleThemeChange()
-        case (.appearance, 1): // Dil
+        case (.appearance, 0): // Dil
             handleLanguageChange()
         case (.notifications, 0): // Quiz Hatırlatmaları
             handleQuizReminders()

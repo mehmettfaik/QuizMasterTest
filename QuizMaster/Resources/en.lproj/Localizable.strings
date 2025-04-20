@@ -133,6 +133,13 @@
 "achievements" = "Achievement Badges";
 "no_badges_yet" = "No Badges Yet";
 "earn_badges_message" = "Solve quizzes to earn badges!";
+"rookie" = "Rookie";
+"expert" = "Expert";
+"legend" = "Legend";
+"quiz_lover" = "Quiz Lover";
+"quiz_pro" = "Quiz Pro";
+"elite" = "Elite";
+
 
 // Game
 "game_invitation" = "Game Invitation";
@@ -142,4 +149,42 @@
 "start_quiz" = "Start Quiz";
 "next_question" = "Next Question";
 "finish_quiz" = "Finish Quiz";
-"your_score" = "Your Score"; 
+"your_score" = "Your Score";
+
+
+// FriendProfil
+"collect_100_points" = "Collect 100 Points";
+"collect_500_points" = "Collect 500 Points";
+"collect_1000_points" = "Collect 1000 Points";
+"complete_5_quizzes" = "Complete 5 Quizzes";
+"complete_20_quizzes" = "Complete 20 Quizzes";
+"reach_top_10" = "Reach Top 10";
+"point" = "Point";
+
+
+// Online
+"online_users" = "Online Users";
+
+// FriendView
+"add_friend" = "Add Friend";
+"friend_requests" = "Friend Requests";
+"search_by_email" = "Search by Email... ";
+"no_results_yet" = "No results yet";
+
+"error_title" = "Error";
+"success_title" = "Success";
+"ok_button" = "OK";
+"cancel_button" = "Cancel";
+"send_button" = "Send";
+"friend_request" = "Friend Request";
+"cant_send_request_to_self" = "You cannot send a friend request to yourself.";
+"friend_request_sent_success" = "Friend request has been sent.";
+"send_friend_request_confirmation" = "Do you want to send a friend request to %@?";
+"no_search_results_found" = "No Search Results Found";
+"no_pending_requests_found" = "No Pending Requests";
+
+
+"tab_home" = "Home";
+"tab_explore" = "Explore";
+"tab_statistics" = "Statistics";
+"tab_profile" = "Profile";
