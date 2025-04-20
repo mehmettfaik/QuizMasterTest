@@ -459,10 +459,12 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
     }
     
     @objc private func segmentedControlValueChanged() {
-        statsView.isHidden = segmentedControl.selectedSegmentIndex == 1
-        leaderboardView.isHidden = segmentedControl.selectedSegmentIndex == 0
+        let isLeaderboardSelected = segmentedControl.selectedSegmentIndex == 1
+        statsView.isHidden = isLeaderboardSelected
+        leaderboardView.isHidden = !isLeaderboardSelected
+        noDataView.isHidden = isLeaderboardSelected
         
-        if segmentedControl.selectedSegmentIndex == 1 {
+        if isLeaderboardSelected {
             loadLeaderboard()
         }
     }
