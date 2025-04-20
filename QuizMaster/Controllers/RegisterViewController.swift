@@ -14,6 +14,16 @@ class RegisterViewController: UIViewController {
         return imageView
     }()
     
+    private let welcomeLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Welcome QuizMaster"
+        label.textColor = .primaryPurple
+        label.font = .systemFont(ofSize: 28, weight: .bold)
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private let backButton: UIButton = {
         let button = UIButton(type: .system)
         let backImage = UIImage(systemName: "chevron.left")
@@ -162,6 +172,7 @@ class RegisterViewController: UIViewController {
         view.backgroundColor = .white
         
         view.addSubview(logoImageView)
+        view.addSubview(welcomeLabel)
         view.addSubview(backButton)
         view.addSubview(nameTextField)
         view.addSubview(surnameTextField)
@@ -181,7 +192,10 @@ class RegisterViewController: UIViewController {
             logoImageView.widthAnchor.constraint(equalToConstant: 180),
             logoImageView.heightAnchor.constraint(equalToConstant: 180),
             
-            nameTextField.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 80),
+            welcomeLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 80),
+            welcomeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+            nameTextField.topAnchor.constraint(equalTo: welcomeLabel.bottomAnchor, constant: 40),
             nameTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             nameTextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             nameTextField.heightAnchor.constraint(equalToConstant: 50),

@@ -37,8 +37,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             window.rootViewController = MainTabBarController()
             updateUserOnlineStatus(isOnline: true)
         } else {
-            // Kullanıcı giriş yapmamışsa LoginViewController'ı göster
-            window.rootViewController = LoginViewController()
+            // Kullanıcı giriş yapmamışsa WelcomeViewController'ı göster
+            window.rootViewController = WelcomeViewController()
         }
         
         window.makeKeyAndVisible()
@@ -107,15 +107,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // Online durumunu güncelle
             updateUserOnlineStatus(isOnline: true)
         } else {
-            // Kullanıcı giriş yapmamışsa LoginViewController'ı göster
-            let loginViewController = LoginViewController()
+            // Kullanıcı giriş yapmamışsa WelcomeViewController'ı göster
+            let welcomeViewController = WelcomeViewController()
             
             // Animasyonlu geçiş efekti
             UIView.transition(with: window,
                              duration: 0.3,
                              options: .transitionCrossDissolve,
                              animations: {
-                window.rootViewController = loginViewController
+                window.rootViewController = welcomeViewController
             }, completion: nil)
         }
     }

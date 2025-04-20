@@ -14,6 +14,16 @@ class LoginViewController: UIViewController {
         return imageView
     }()
     
+    private let welcomeLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Welcome QuizMaster"
+        label.font = .systemFont(ofSize: 28, weight: .bold)
+        label.textColor = .primaryPurple
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private let emailTextField: UITextField = {
         let textField = UITextField()
         textField.placeholder = "E-posta"
@@ -169,6 +179,7 @@ class LoginViewController: UIViewController {
         view.backgroundColor = .white
         
         view.addSubview(logoImageView)
+        view.addSubview(welcomeLabel)
         view.addSubview(emailTextField)
         view.addSubview(passwordTextField)
         view.addSubview(loginButton)
@@ -185,7 +196,11 @@ class LoginViewController: UIViewController {
             logoImageView.widthAnchor.constraint(equalToConstant: 180),
             logoImageView.heightAnchor.constraint(equalToConstant: 180),
             
-            emailTextField.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 130),
+            welcomeLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 80),
+            welcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            welcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            emailTextField.topAnchor.constraint(equalTo: welcomeLabel.bottomAnchor, constant: 20),
             emailTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             emailTextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             emailTextField.heightAnchor.constraint(equalToConstant: 50),
