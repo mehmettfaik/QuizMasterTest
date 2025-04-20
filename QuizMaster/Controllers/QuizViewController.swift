@@ -79,7 +79,7 @@ class QuizViewController: UIViewController {
     
     private let askGPTButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("QuizGPT'ye sor", for: .normal)
+        button.setTitle(LanguageManager.shared.localizedString(for: "ask_ai"), for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
         button.backgroundColor = .white
         button.setTitleColor(.primaryPurple, for: .normal)
@@ -100,7 +100,7 @@ class QuizViewController: UIViewController {
     
     private let nextButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Next", for: .normal)
+        button.setTitle(LanguageManager.shared.localizedString(for: "next_question"), for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
         button.backgroundColor = .primaryPurple
         button.setTitleColor(.white, for: .normal)
@@ -247,7 +247,7 @@ class QuizViewController: UIViewController {
             
             nextButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             nextButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
-            nextButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.3, constant: -40),
+            nextButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.3, constant: 20),
             nextButton.heightAnchor.constraint(equalToConstant: 50)
         ])
         

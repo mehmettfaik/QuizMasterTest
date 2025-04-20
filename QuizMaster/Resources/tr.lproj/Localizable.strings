@@ -129,6 +129,7 @@
 "signup" = "Kayıt Ol";
 "email" = "E-posta";
 "password" = "Şifre";
+"password_6_characters" = "Şifre en az 6 karakter olmalıdır";
 
 // Profile
 "edit_profile" = "Profili Düzenle";
@@ -169,6 +170,7 @@
 // Online
 "online_users" = "Online Kullanıcılar";
 "friend_warning" = "Şu anda uygulamadaki hiçbir kullanıcı çevrimiçi değil!";
+"online_button" = "Çevrimiçi";
 
 
 // FriendView

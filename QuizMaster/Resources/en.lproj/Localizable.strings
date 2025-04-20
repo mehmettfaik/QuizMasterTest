@@ -26,7 +26,7 @@
 "good_evening" = "GOOD EVENING 🌅";
 "good_night" = "GOOD NIGHT 🌙";
 "quiz_categories" = "Quiz Categories";
-"ask_ai" = "Ask AI";
+"ask_ai" = "Ask QuizGPT";
 "ai_description" = "Our artificial intelligence knows everything, you should still try your luck!";
 
 // Categories
@@ -127,6 +127,7 @@
 "signup" = "Sign Up";
 "email" = "Email";
 "password" = "Password";
+"password_6_characters" = "Password must be at least 6 characters";
 
 // Profile
 "edit_profile" = "Edit Profile";
@@ -167,6 +168,7 @@
 // Online
 "online_users" = "Online Users";
 "friend_warning" = "Currently, there are no users online in the app!";
+"online_button" = "Online";
 
 // FriendView
 "add_friend" = "Add Friend";

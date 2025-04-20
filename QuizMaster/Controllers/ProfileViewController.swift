@@ -7,11 +7,11 @@ import FirebaseAuth
 extension UIViewController {
     func showErrorAlert(_ error: Error) {
         let alert = UIAlertController(
-            title: "Hata",
+            title: LanguageManager.shared.localizedString(for: "error"),
             message: error.localizedDescription,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Tamam", style: .default))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "ok"), style: .default))
         present(alert, animated: true)
     }
 }
@@ -198,7 +198,7 @@ class ProfileViewController: UIViewController {
     
     private let onlineButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Online", for: .normal)
+        button.setTitle(LanguageManager.shared.localizedString(for: "online_button"), for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = .systemGreen
         button.layer.cornerRadius = 20

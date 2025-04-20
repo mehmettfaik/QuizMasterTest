@@ -274,7 +274,7 @@ class RegisterViewController: UIViewController {
         }
         
         guard viewModel.validatePassword(password) else {
-            showAlert(title: "Error", message: "Password must be at least 6 characters")
+            showAlert(title: "Error", message: LanguageManager.shared.localizedString(for: "password_6_characters"))
             return
         }
         
