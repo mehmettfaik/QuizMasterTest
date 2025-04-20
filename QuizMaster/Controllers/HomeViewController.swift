@@ -97,8 +97,8 @@ class HomeViewController: UIViewController {
         label.text = LanguageManager.shared.localizedString(for: "ai_description")
         label.numberOfLines = 3
         label.textColor = UIColor(white: 1.0, alpha: 0.85) // Beyaz ama çok hafif opak
-        label.textAlignment = .center
-        label.font = .systemFont(ofSize: 18, weight: .medium) // Başlık ile uyumlu font
+        label.textAlignment = .left
+        label.font = .systemFont(ofSize: 16, weight: .medium) // Başlık ile uyumlu font
         label.translatesAutoresizingMaskIntoConstraints = false
 
         return label
@@ -269,8 +269,8 @@ class HomeViewController: UIViewController {
             
             aiImageView.centerYAnchor.constraint(equalTo: aiCard.centerYAnchor),
             aiImageView.trailingAnchor.constraint(equalTo: aiCard.trailingAnchor, constant: -20),
-            aiImageView.widthAnchor.constraint(equalToConstant: 80),
-            aiImageView.heightAnchor.constraint(equalToConstant: 80),
+            aiImageView.widthAnchor.constraint(equalToConstant: 120),
+            aiImageView.heightAnchor.constraint(equalToConstant: 120),
             
             askAIButton.topAnchor.constraint(equalTo: aiDescriptionLabel.bottomAnchor, constant: 16),
             askAIButton.leadingAnchor.constraint(equalTo: aiCard.leadingAnchor, constant: 20),
@@ -361,7 +361,7 @@ extension HomeViewController: UICollectionViewDelegate, UICollectionViewDataSour
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let category = categories[indexPath.item]
         
-        if category.title == "Diğer" {
+        if category.title == "Other" {
             if let cell = collectionView.cellForItem(at: indexPath) as? CategoryCell {
                 cell.triggerShakeAnimation()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {

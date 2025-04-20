@@ -27,7 +27,7 @@
 "good_night" = "GOOD NIGHT 🌙";
 "quiz_categories" = "Quiz Categories";
 "ask_ai" = "Ask AI";
-"ai_description" = "Our artificial intelligence knows everything, you should still try your luck :)";
+"ai_description" = "Our artificial intelligence knows everything, you should still try your luck!";
 
 // Categories
 "vehicle" = "Vehicle";
