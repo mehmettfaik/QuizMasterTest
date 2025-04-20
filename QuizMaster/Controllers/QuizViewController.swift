@@ -510,7 +510,6 @@ class QuizViewController: UIViewController {
                             optionContainer.layer.borderWidth = 3
                             optionContainer.layer.borderColor = UIColor.systemGreen.cgColor
                             optionContainer.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
-                            optionContainer.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
                         } else {
                             optionContainer.alpha = 0.5
                         }
@@ -611,10 +610,16 @@ class QuizViewController: UIViewController {
             }
         }
         
-        // Show Ask GPT and Next buttons with animation
+        // Doğru cevap kontrolü ve geçiş
         let isCorrect = selectedAnswer == currentQuestion.correctAnswer
         
-        if !isCorrect {
+        if isCorrect {
+            // Doğru cevap verildiğinde 1 saniye bekleyip diğer soruya geç
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.viewModel.nextQuestion()
+            }
+        } else {
+            // Yanlış cevap verildiğinde Ask GPT ve Next butonlarını göster
             UIView.animate(withDuration: 0.3) {
                 self.askGPTButton.isHidden = false
                 self.nextButton.isHidden = false
