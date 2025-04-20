@@ -49,18 +49,22 @@ class QuizViewController: UIViewController {
     
     private let questionContainer: UIView = {
         let view = UIView()
-        view.backgroundColor = .primaryPurple
+        view.backgroundColor = .white
         view.layer.cornerRadius = 20
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 4)
+        view.layer.shadowRadius = 12
+        view.layer.shadowOpacity = 0.1
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
     
     private let questionLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 20, weight: .medium)
-        label.textColor = .white
+        label.font = .systemFont(ofSize: 22, weight: .semibold)
+        label.textColor = .primaryPurple
         label.numberOfLines = 0
-        label.textAlignment = .center
+        label.textAlignment = .left
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -77,11 +81,20 @@ class QuizViewController: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("QuizGPT'ye sor", for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        button.backgroundColor = .primaryPurple
-        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .white
+        button.setTitleColor(.primaryPurple, for: .normal)
         button.layer.cornerRadius = 25
+        button.layer.borderWidth = 2
+        button.layer.borderColor = UIColor.primaryPurple.cgColor
         button.isHidden = true
         button.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Gölge efekti
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
+        button.layer.shadowOpacity = 0.1
+        
         return button
     }()
     
@@ -89,11 +102,18 @@ class QuizViewController: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("Next", for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        button.backgroundColor = .systemGray5
-        button.setTitleColor(.black, for: .normal)
+        button.backgroundColor = .primaryPurple
+        button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 25
         button.isHidden = true
         button.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Gölge efekti
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
+        button.layer.shadowOpacity = 0.1
+        
         return button
     }()
     
@@ -121,18 +141,35 @@ class QuizViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .white
         
-        let closeButton = UIButton(type: .system)
-        closeButton.setImage(UIImage(systemName: "xmark")?.withConfiguration(
-            UIImage.SymbolConfiguration(pointSize: 16, weight: .medium)
-        ), for: .normal)
-        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.1)
-        closeButton.tintColor = .black
-        closeButton.layer.cornerRadius = 15
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        // Ana container view
+        let topContainer = UIView()
+        topContainer.translatesAutoresizingMaskIntoConstraints = false
+        topContainer.backgroundColor = .clear
         
-        view.addSubview(closeButton)
-        view.addSubview(progressView)
-        view.addSubview(progressLabel)
+        // Geri butonu tasarımı
+        let backButton = UIButton(type: .system)
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Icon ayarları
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let image = UIImage(systemName: "chevron.left", withConfiguration: config)
+        backButton.setImage(image, for: .normal)
+        
+        // Görünüm ayarları
+        backButton.backgroundColor = .primaryPurple
+        backButton.tintColor = .white
+        backButton.layer.cornerRadius = 18
+        
+        // Progress container
+        let progressContainer = UIView()
+        progressContainer.translatesAutoresizingMaskIntoConstraints = false
+        progressContainer.backgroundColor = .clear
+        
+        view.addSubview(topContainer)
+        topContainer.addSubview(backButton)
+        topContainer.addSubview(progressContainer)
+        progressContainer.addSubview(progressView)
+        progressContainer.addSubview(progressLabel)
         view.addSubview(timerContainer)
         timerContainer.addSubview(timerLabel)
         view.addSubview(questionContainer)
@@ -144,22 +181,36 @@ class QuizViewController: UIViewController {
         setupTimerUI()
         
         NSLayoutConstraint.activate([
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            closeButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            closeButton.widthAnchor.constraint(equalToConstant: 30),
-            closeButton.heightAnchor.constraint(equalToConstant: 30),
+            // Top container constraints
+            topContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            topContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            topContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            topContainer.heightAnchor.constraint(equalToConstant: 36),
             
-            progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            progressView.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 16),
+            // Geri butonu constraints
+            backButton.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
+            backButton.centerYAnchor.constraint(equalTo: topContainer.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 36),
+            backButton.heightAnchor.constraint(equalToConstant: 36),
+            
+            // Progress container constraints
+            progressContainer.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16),
+            progressContainer.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
+            progressContainer.centerYAnchor.constraint(equalTo: topContainer.centerYAnchor),
+            progressContainer.heightAnchor.constraint(equalToConstant: 8),
+            
+            // Progress view constraints
+            progressView.leadingAnchor.constraint(equalTo: progressContainer.leadingAnchor),
             progressView.trailingAnchor.constraint(equalTo: progressLabel.leadingAnchor, constant: -8),
+            progressView.centerYAnchor.constraint(equalTo: progressContainer.centerYAnchor),
             progressView.heightAnchor.constraint(equalToConstant: 8),
-            progressView.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
             
-            progressLabel.centerYAnchor.constraint(equalTo: progressView.centerYAnchor),
-            progressLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            // Progress label constraints
+            progressLabel.centerYAnchor.constraint(equalTo: progressContainer.centerYAnchor),
+            progressLabel.trailingAnchor.constraint(equalTo: progressContainer.trailingAnchor),
             progressLabel.widthAnchor.constraint(equalToConstant: 50),
             
-            timerContainer.topAnchor.constraint(equalTo: progressView.bottomAnchor, constant: 32),
+            timerContainer.topAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: 24),
             timerContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             timerContainer.widthAnchor.constraint(equalToConstant: 60),
             timerContainer.heightAnchor.constraint(equalToConstant: 60),
@@ -191,7 +242,7 @@ class QuizViewController: UIViewController {
             nextButton.heightAnchor.constraint(equalToConstant: 50)
         ])
         
-        closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
+        backButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         askGPTButton.addTarget(self, action: #selector(askGPTButtonTapped), for: .touchUpInside)
         nextButton.addTarget(self, action: #selector(nextButtonTapped), for: .touchUpInside)
     }
@@ -241,6 +292,35 @@ class QuizViewController: UIViewController {
             .store(in: &cancellables)
     }
     
+    private func createOptionButton(with title: String, tag: Int) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 18)
+        button.setTitleColor(.darkGray, for: .normal)
+        button.backgroundColor = .white
+        button.layer.cornerRadius = 15
+        button.tag = tag
+        button.contentHorizontalAlignment = .left
+        button.contentEdgeInsets = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 20)
+        button.addTarget(self, action: #selector(optionButtonTapped(_:)), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Gölge efekti
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
+        button.layer.shadowOpacity = 0.1
+        
+        // Çerçeve
+        button.layer.borderWidth = 1.5
+        button.layer.borderColor = UIColor.systemGray4.cgColor
+        
+        // Yükseklik constraint'i
+        button.heightAnchor.constraint(equalToConstant: 56).isActive = true
+        
+        return button
+    }
+    
     private func updateUI(with question: Question?) {
         guard let question = question else { return }
         
@@ -252,8 +332,10 @@ class QuizViewController: UIViewController {
         progressView.setProgress(progress, animated: true)
         progressLabel.text = "\(viewModel.currentQuestionIndex + 1)/\(viewModel.totalQuestions)"
         
-        // Update question text
-        questionLabel.text = question.text
+        // Update question text with animation
+        UIView.transition(with: questionLabel, duration: 0.3, options: .transitionCrossDissolve) {
+            self.questionLabel.text = question.text
+        }
         
         // Check if options have images
         if let optionImages = question.optionImages, !optionImages.isEmpty {
@@ -277,13 +359,17 @@ class QuizViewController: UIViewController {
             gridContainer.addArrangedSubview(bottomRow)
             optionsStackView.addArrangedSubview(gridContainer)
             
-            // Add options to grid
+            // Add options to grid with animation
             for (index, option) in question.options.enumerated() {
                 let containerView = UIView()
                 containerView.backgroundColor = .white
-                containerView.layer.cornerRadius = 12
+                containerView.layer.cornerRadius = 15
                 containerView.layer.borderWidth = 1
                 containerView.layer.borderColor = UIColor.systemGray4.cgColor
+                containerView.layer.shadowColor = UIColor.black.cgColor
+                containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
+                containerView.layer.shadowRadius = 6
+                containerView.layer.shadowOpacity = 0.1
                 containerView.translatesAutoresizingMaskIntoConstraints = false
                 
                 let imageView = UIImageView()
@@ -300,7 +386,7 @@ class QuizViewController: UIViewController {
                 let button = UIButton(type: .system)
                 button.backgroundColor = .clear
                 button.setTitle(option, for: .normal)
-                button.setTitle("", for: .normal) // Hide the title
+                button.setTitle("", for: .normal)
                 button.tag = index
                 button.addTarget(self, action: #selector(optionButtonTapped(_:)), for: .touchUpInside)
                 button.translatesAutoresizingMaskIntoConstraints = false
@@ -309,10 +395,10 @@ class QuizViewController: UIViewController {
                 containerView.addSubview(button)
                 
                 NSLayoutConstraint.activate([
-                    imageView.topAnchor.constraint(equalTo: containerView.topAnchor),
-                    imageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-                    imageView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-                    imageView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+                    imageView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 8),
+                    imageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
+                    imageView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+                    imageView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
                     
                     button.topAnchor.constraint(equalTo: containerView.topAnchor),
                     button.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
@@ -320,46 +406,27 @@ class QuizViewController: UIViewController {
                     button.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
                 ])
                 
-                if index < 2 {
-                    topRow.addArrangedSubview(containerView)
-                } else {
-                    bottomRow.addArrangedSubview(containerView)
+                // Add to appropriate row with animation
+                UIView.animate(withDuration: 0.3, delay: Double(index) * 0.1) {
+                    if index < 2 {
+                        topRow.addArrangedSubview(containerView)
+                    } else {
+                        bottomRow.addArrangedSubview(containerView)
+                    }
+                    containerView.alpha = 1
                 }
             }
-            
-            // Set grid container height
-            gridContainer.heightAnchor.constraint(equalToConstant: 280).isActive = true
-            
         } else {
-            // Create regular text options
-            for option in question.options {
-                let containerView = UIView()
-                containerView.backgroundColor = .white
-                containerView.layer.cornerRadius = 12
-                containerView.layer.borderWidth = 1
-                containerView.layer.borderColor = UIColor.systemGray4.cgColor
-                containerView.translatesAutoresizingMaskIntoConstraints = false
+            // Add text options with animation
+            for (index, option) in question.options.enumerated() {
+                let button = createOptionButton(with: option, tag: index)
+                button.alpha = 0
+                optionsStackView.addArrangedSubview(button)
                 
-                let button = UIButton(type: .system)
-                button.setTitle(option, for: .normal)
-                button.setTitleColor(.black, for: .normal)
-                button.titleLabel?.font = .systemFont(ofSize: 16)
-                button.contentHorizontalAlignment = .left
-                button.contentEdgeInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
-                button.addTarget(self, action: #selector(optionButtonTapped(_:)), for: .touchUpInside)
-                button.translatesAutoresizingMaskIntoConstraints = false
-                
-                containerView.addSubview(button)
-                
-                NSLayoutConstraint.activate([
-                    containerView.heightAnchor.constraint(equalToConstant: 50),
-                    button.topAnchor.constraint(equalTo: containerView.topAnchor),
-                    button.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-                    button.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-                    button.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
-                ])
-                
-                optionsStackView.addArrangedSubview(containerView)
+                UIView.animate(withDuration: 0.3, delay: Double(index) * 0.1) {
+                    button.alpha = 1
+                    button.transform = .identity
+                }
             }
         }
         
@@ -403,12 +470,18 @@ class QuizViewController: UIViewController {
     }
     
     private func handleTimeUp() {
+        timer?.invalidate()
         viewModel.answerQuestion(nil)
-        // Show Ask GPT and Next buttons when time runs out
-        askGPTButton.isHidden = false
-        nextButton.isHidden = false
         
-        // Highlight correct answer in green
+        // Show Ask GPT and Next buttons when time runs out
+        UIView.animate(withDuration: 0.3) {
+            self.askGPTButton.isHidden = false
+            self.nextButton.isHidden = false
+            self.askGPTButton.alpha = 1
+            self.nextButton.alpha = 1
+        }
+        
+        // Highlight correct answer in green with animation
         guard let currentQuestion = viewModel.currentQuestion else { return }
         
         if let optionImages = currentQuestion.optionImages, !optionImages.isEmpty {
@@ -422,28 +495,39 @@ class QuizViewController: UIViewController {
                 
                 let correctIndex = currentQuestion.options.firstIndex(of: currentQuestion.correctAnswer) ?? -1
                 
-                for (index, optionContainer) in allOptionViews.enumerated() {
-                    if index == correctIndex {
-                        optionContainer.layer.borderWidth = 3
-                        optionContainer.layer.borderColor = UIColor.systemGreen.cgColor
-                    }
-                    
-                    if let button = optionContainer.subviews.last as? UIButton {
-                        button.isEnabled = false
+                UIView.animate(withDuration: 0.3) {
+                    for (index, optionContainer) in allOptionViews.enumerated() {
+                        if index == correctIndex {
+                            optionContainer.layer.borderWidth = 3
+                            optionContainer.layer.borderColor = UIColor.systemGreen.cgColor
+                            optionContainer.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                            optionContainer.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
+                        } else {
+                            optionContainer.alpha = 0.5
+                        }
+                        
+                        if let button = optionContainer.subviews.last as? UIButton {
+                            button.isEnabled = false
+                        }
                     }
                 }
             }
         } else {
-            optionsStackView.arrangedSubviews.forEach { view in
-                guard let containerView = view as? UIView,
-                      let button = containerView.subviews.first(where: { $0 is UIButton }) as? UIButton,
-                      let title = button.title(for: .normal) else { return }
-                
-                if title == currentQuestion.correctAnswer {
-                    containerView.backgroundColor = .systemGreen.withAlphaComponent(0.3)
-                    button.setTitleColor(.systemGreen, for: .normal)
+            UIView.animate(withDuration: 0.3) {
+                self.optionsStackView.arrangedSubviews.forEach { view in
+                    guard let button = view as? UIButton,
+                          let title = button.title(for: .normal) else { return }
+                    
+                    if title == currentQuestion.correctAnswer {
+                        button.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
+                        button.layer.borderColor = UIColor.systemGreen.cgColor
+                        button.setTitleColor(.systemGreen, for: .normal)
+                        button.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                    } else {
+                        button.alpha = 0.5
+                    }
+                    button.isEnabled = false
                 }
-                button.isEnabled = false
             }
         }
     }
@@ -466,7 +550,7 @@ class QuizViewController: UIViewController {
         timer?.invalidate()
         viewModel.answerQuestion(selectedAnswer)
         
-        // Highlight correct and wrong answers
+        // Highlight correct and wrong answers with animation
         if let optionImages = currentQuestion.optionImages, !optionImages.isEmpty {
             if let gridContainer = optionsStackView.arrangedSubviews.first as? UIStackView {
                 var allOptionViews: [UIView] = []
@@ -478,46 +562,55 @@ class QuizViewController: UIViewController {
                 
                 let correctIndex = currentQuestion.options.firstIndex(of: currentQuestion.correctAnswer) ?? -1
                 
-                for (index, optionContainer) in allOptionViews.enumerated() {
-                    if index == correctIndex {
-                        optionContainer.layer.borderWidth = 3
-                        optionContainer.layer.borderColor = UIColor.systemGreen.cgColor
-                    } else if index == selectedIndex && index != correctIndex {
-                        optionContainer.layer.borderWidth = 3
-                        optionContainer.layer.borderColor = UIColor.systemRed.cgColor
-                    }
-                    
-                    if let button = optionContainer.subviews.last as? UIButton {
-                        button.isEnabled = false
+                UIView.animate(withDuration: 0.3) {
+                    for (index, optionContainer) in allOptionViews.enumerated() {
+                        if index == correctIndex {
+                            optionContainer.layer.borderWidth = 3
+                            optionContainer.layer.borderColor = UIColor.systemGreen.cgColor
+                            optionContainer.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                        } else if index == selectedIndex && index != correctIndex {
+                            optionContainer.layer.borderWidth = 3
+                            optionContainer.layer.borderColor = UIColor.systemRed.cgColor
+                            optionContainer.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+                        }
+                        
+                        if let button = optionContainer.subviews.last as? UIButton {
+                            button.isEnabled = false
+                        }
                     }
                 }
             }
         } else {
-            optionsStackView.arrangedSubviews.forEach { view in
-                guard let containerView = view as? UIView,
-                      let button = containerView.subviews.first(where: { $0 is UIButton }) as? UIButton,
-                      let title = button.title(for: .normal) else { return }
-                
-                if title == currentQuestion.correctAnswer {
-                    containerView.backgroundColor = .systemGreen.withAlphaComponent(0.3)
-                    button.setTitleColor(.systemGreen, for: .normal)
-                } else if title == selectedAnswer && title != currentQuestion.correctAnswer {
-                    containerView.backgroundColor = .systemRed.withAlphaComponent(0.3)
-                    button.setTitleColor(.systemRed, for: .normal)
+            UIView.animate(withDuration: 0.3) {
+                self.optionsStackView.arrangedSubviews.forEach { view in
+                    guard let button = view as? UIButton,
+                          let title = button.title(for: .normal) else { return }
+                    
+                    if title == currentQuestion.correctAnswer {
+                        button.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
+                        button.layer.borderColor = UIColor.systemGreen.cgColor
+                        button.setTitleColor(.systemGreen, for: .normal)
+                        button.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                    } else if title == selectedAnswer && title != currentQuestion.correctAnswer {
+                        button.backgroundColor = UIColor.systemRed.withAlphaComponent(0.2)
+                        button.layer.borderColor = UIColor.systemRed.cgColor
+                        button.setTitleColor(.systemRed, for: .normal)
+                        button.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+                    }
+                    button.isEnabled = false
                 }
-                button.isEnabled = false
             }
         }
         
-        // Show Ask GPT and Next buttons if answer is wrong
+        // Show Ask GPT and Next buttons with animation
         let isCorrect = selectedAnswer == currentQuestion.correctAnswer
-        askGPTButton.isHidden = isCorrect
-        nextButton.isHidden = isCorrect
         
-        // Wait for a moment before moving to the next question if correct
-        if isCorrect {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                self?.viewModel.nextQuestion()
+        if !isCorrect {
+            UIView.animate(withDuration: 0.3) {
+                self.askGPTButton.isHidden = false
+                self.nextButton.isHidden = false
+                self.askGPTButton.alpha = 1
+                self.nextButton.alpha = 1
             }
         }
     }

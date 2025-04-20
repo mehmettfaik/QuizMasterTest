@@ -599,7 +599,7 @@ class MultiplayerGameViewController: UIViewController {
         hasAnsweredCurrentQuestion = true
         selectedButton = button
         
-        button.backgroundColor = .primaryPurple
+        button.backgroundColor = .systemCyan
         
         answerStackView.arrangedSubviews.forEach { view in
             guard let otherButton = view as? UIButton else { return }
