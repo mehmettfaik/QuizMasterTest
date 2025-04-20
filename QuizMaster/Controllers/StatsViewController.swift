@@ -436,7 +436,7 @@ class StatsViewController: UIViewController, ChartViewDelegate, UITableViewDeleg
             lineChartView.bottomAnchor.constraint(lessThanOrEqualTo: statsView.bottomAnchor, constant: -20),
             
             // No Data View constraints
-            noDataView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            noDataView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: -200),
             noDataView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             noDataView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             noDataView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),

@@ -408,10 +408,15 @@ extension FriendProfileViewController: UICollectionViewDelegate, UICollectionVie
         let achievement = achievements[indexPath.item]
         let alert = UIAlertController(
             title: achievement.title,
-            message: "\(achievement.description)\n\nİlerleme: \(achievement.currentValue)/\(achievement.requirement)",
+            message: """
+            \(achievement.description)
+
+            \(LanguageManager.shared.localizedString(for: "achievement_progress")): \(achievement.currentValue)/\(achievement.requirement)
+            """,
+
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Tamam", style: .default))
+        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "ok"), style: .default))
         present(alert, animated: true)
     }
 } 

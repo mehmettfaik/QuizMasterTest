@@ -109,6 +109,20 @@
 "system_theme" = "Sistem";
 "avatar_updated" = "Avatarınız başarıyla güncellendi.";
 "name_updated" = "İsminiz başarıyla güncellendi.";
+"current_password" = "Mevcut şifre";
+"new_password" = "Yeni şifre";
+"confirm_new_password" = "Yeni şifreyi tekrar giriniz";
+"enter_new_password" = "Yeni şifreyi giriniz";
+
+"password_fields_error" = "Lütfen tüm alanları doldurun ve şifrelerin eşleştiğinden emin olun.";
+"password_updated" = "Şifreniz başarıyla güncellendi.";
+"enter_password" = "Şifrenizi girin";
+"delete_account_confirmation" = "Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!";
+"logout_confirmation" = "Çıkış yapmak istediğinize emin misiniz?";
+"quiz_reminders_settings_message" = "Sınav hatırlatıcılarını etkinleştirme/devre dışı bırakma ayarlarına yönlendirileceksiniz.";
+"special_offers_settings_message" = "Özel teklif bildirimlerini etkinleştirme/devre dışı bırakma ayarlarına yönlendirileceksiniz.";
+"go_to_settings" = "Ayarlara git";
+
 
 // Auth
 "login" = "Giriş Yap";
@@ -129,6 +143,10 @@
 "quiz_pro" = "Quiz Ustası";
 "elite" = "Elit";
 
+// Game
+"game_invitation" = "Oyun Davetiyesi";
+"game_invitation_message" = "%@ sizi bir bilgi yarışması oyunu oynamaya davet etti!";
+
 // Quiz
 "start_quiz" = "Sınava Başla";
 "next_question" = "Sonraki Soru";
@@ -144,6 +162,8 @@
 "complete_20_quizzes" = "20 Quiz Tamamla";
 "reach_top_10" = "İlk 10'a Gir";
 "point" = "Puan";
+"achievement_progress" = "İlerleme";
+
 
 
 // Online

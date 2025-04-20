@@ -514,10 +514,14 @@ extension ProfileViewController: UICollectionViewDataSource, UICollectionViewDel
         
         let alert = UIAlertController(
             title: achievement.title,
-            message: "\(achievement.description)\n\nİlerleme: \(achievement.currentValue)/\(achievement.requirement)",
+            message: """
+            \(achievement.description)
+
+            \(LanguageManager.shared.localizedString(for: "achievement_progress")): \(achievement.currentValue)/\(achievement.requirement)
+            """,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Tamam", style: .default))
+        alert.addAction(UIAlertAction(title:LanguageManager.shared.localizedString(for: "ok"), style: .default))
         present(alert, animated: true)
     }
     
@@ -829,49 +833,9 @@ class SettingsViewController: UIViewController {
     }
     
     private func handleProfilePhotoChange() {
-        let alert = UIAlertController(
-            title: LanguageManager.shared.localizedString(for: "select_avatar"),
-            message: LanguageManager.shared.localizedString(for: "select_character"),
-            preferredStyle: .actionSheet
-        )
-        
-        for avatar in Avatar.allCases {
-            let action = UIAlertAction(title: avatar.displayName, style: .default) { [weak self] _ in
-                self?.viewModel.updateAvatar(avatar.rawValue) { error in
-                    DispatchQueue.main.async {
-                        if let error = error {
-                            self?.showErrorAlert(error)
-                        } else {
-                            self?.showSuccessAlert(message: LanguageManager.shared.localizedString(for: "avatar_updated"))
-                        }
-                    }
-                }
-            }
-            
-            // Avatar önizleme resmi
-            if let image = avatar.image {
-                let size = CGSize(width: 30, height: 30)
-                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                let rect = CGRect(origin: .zero, size: size)
-                
-                // Arkaplan rengi
-                avatar.backgroundColor.setFill()
-                UIBezierPath(roundedRect: rect, cornerRadius: 8).fill()
-                
-                // Avatar resmi
-                image.draw(in: rect.insetBy(dx: 4, dy: 4))
-                
-                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                UIGraphicsEndImageContext()
-                
-                action.setValue(finalImage?.withRenderingMode(.alwaysOriginal), forKey: "image")
-            }
-            
-            alert.addAction(action)
-        }
-        
-        alert.addAction(UIAlertAction(title: LanguageManager.shared.localizedString(for: "cancel"), style: .cancel))
-        present(alert, animated: true)
+        let avatarVC = AvatarSelectionViewController(viewModel: viewModel)
+        let navController = UINavigationController(rootViewController: avatarVC)
+        present(navController, animated: true)
     }
     
     private func handleNameChange() {
@@ -907,72 +871,10 @@ class SettingsViewController: UIViewController {
     }
     
     private func handleLanguageChange() {
-        let alert = UIAlertController(
-            title: LanguageManager.shared.localizedString(for: "language"),
-            message: nil,
-            preferredStyle: .actionSheet
-        )
-        
-        let turkishAction = UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "turkish"),
-            style: .default
-        ) { [weak self] _ in
-            self?.viewModel.updateLanguage("tr") { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        self?.showErrorAlert(error)
-                    } else {
-                        // Önce mevcut view controller'ı kapat
-                        self?.dismiss(animated: true) {
-                            // Sonra uygulamayı yeniden başlat
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let sceneDelegate = windowScene.delegate as? SceneDelegate {
-                                sceneDelegate.resetRootViewController()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        let englishAction = UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "english"),
-            style: .default
-        ) { [weak self] _ in
-            self?.viewModel.updateLanguage("en") { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        self?.showErrorAlert(error)
-                    } else {
-                        // Önce mevcut view controller'ı kapat
-                        self?.dismiss(animated: true) {
-                            // Sonra uygulamayı yeniden başlat
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let sceneDelegate = windowScene.delegate as? SceneDelegate {
-                                sceneDelegate.resetRootViewController()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        let cancelAction = UIAlertAction(
-            title: LanguageManager.shared.localizedString(for: "cancel"),
-            style: .cancel
-        )
-        
-        alert.addAction(turkishAction)
-        alert.addAction(englishAction)
-        alert.addAction(cancelAction)
-        
-        // iPad için popover presentation
-        if let popoverController = alert.popoverPresentationController {
-            popoverController.sourceView = tableView
-            popoverController.sourceRect = tableView.bounds
-        }
-        
-        present(alert, animated: true)
+        let languageVC = LanguageSelectionViewController(viewModel: viewModel)
+        let navController = UINavigationController(rootViewController: languageVC)
+        navController.modalPresentationStyle = .formSheet
+        present(navController, animated: true)
     }
     
     private func handlePasswordChange() {
@@ -1184,5 +1086,296 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
         })
         
         present(alert, animated: true)
+    }
+}
+
+// MARK: - Language Selection View Controller
+class LanguageSelectionViewController: UITableViewController {
+    private let viewModel: UserViewModel
+    
+    private let languages: [(code: String, name: String, flag: String)] = [
+        ("tr", "Türkçe", "🇹🇷"),
+        ("en", "English", "🇬🇧")
+    ]
+    
+    init(viewModel: UserViewModel) {
+        self.viewModel = viewModel
+        super.init(style: .insetGrouped)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+    }
+    
+    private func setupUI() {
+        title = LanguageManager.shared.localizedString(for: "language")
+        view.backgroundColor = .systemGroupedBackground
+        
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "LanguageCell")
+        tableView.rowHeight = 60
+    }
+    
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return languages.count
+    }
+    
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "LanguageCell", for: indexPath)
+        let language = languages[indexPath.row]
+        
+        var config = cell.defaultContentConfiguration()
+        
+        // Ana başlık
+        config.text = language.name
+        config.textProperties.font = .systemFont(ofSize: 18, weight: .semibold)
+        config.textProperties.color = .label
+        
+        // Bayrak emoji'sini büyük göster
+        let flagAttachment = NSTextAttachment()
+        let flagFont = UIFont.systemFont(ofSize: 30)
+        flagAttachment.bounds = CGRect(x: 0, y: (flagFont.capHeight - 30) / 2, width: 30, height: 30)
+        let flagString = language.flag as NSString
+        flagAttachment.image = flagString.image(with: flagFont)
+        
+        config.image = flagAttachment.image
+        config.imageProperties.maximumSize = CGSize(width: 40, height: 40)
+        config.imageProperties.cornerRadius = 20
+        
+        // Hücre düzeni ayarları
+        config.imageToTextPadding = 15
+        config.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
+        
+        cell.contentConfiguration = config
+        
+        // Seçili dili işaretle
+        let currentLanguage = LanguageManager.shared.currentLanguage
+        cell.accessoryType = language.code == currentLanguage ? .checkmark : .none
+        
+        return cell
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        
+        let selectedLanguage = languages[indexPath.row]
+        viewModel.updateLanguage(selectedLanguage.code) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.showErrorAlert(error)
+                } else {
+                    // Önce mevcut view controller'ı kapat
+                    self?.dismiss(animated: true) {
+                        // Sonra uygulamayı yeniden başlat
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let sceneDelegate = windowScene.delegate as? SceneDelegate {
+                            sceneDelegate.resetRootViewController()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// NSString extension for emoji flag rendering
+extension NSString {
+    func image(with font: UIFont) -> UIImage? {
+        let size = self.size(withAttributes: [.font: font])
+        UIGraphicsBeginImageContextWithOptions(size, false, 0)
+        self.draw(at: .zero, withAttributes: [.font: font])
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return image
+    }
+}
+
+// MARK: - Avatar Selection View Controller
+class AvatarSelectionViewController: UIViewController {
+    private let viewModel: UserViewModel
+    private var selectedAvatar: Avatar?
+    
+    private let collectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 20
+        layout.minimumInteritemSpacing = 20
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.backgroundColor = .systemBackground
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        return collectionView
+    }()
+    
+    init(viewModel: UserViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        setupCollectionView()
+    }
+    
+    private func setupUI() {
+        title = LanguageManager.shared.localizedString(for: "select_avatar")
+        view.backgroundColor = .systemBackground
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: LanguageManager.shared.localizedString(for: "save"),
+            style: .done,
+            target: self,
+            action: #selector(saveTapped)
+        )
+        
+        view.addSubview(collectionView)
+        
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
+    
+    private func setupCollectionView() {
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(AvatarCell.self, forCellWithReuseIdentifier: "AvatarCell")
+    }
+    
+    @objc private func saveTapped() {
+        guard let selectedAvatar = selectedAvatar else { return }
+        
+        viewModel.updateAvatar(selectedAvatar.rawValue) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.showErrorAlert(error)
+                } else {
+                    self?.dismiss(animated: true)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Avatar Collection View Cell
+class AvatarCell: UICollectionViewCell {
+    private let containerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .systemBackground
+        view.layer.cornerRadius = 20
+        view.layer.borderWidth = 2
+        view.layer.borderColor = UIColor.clear.cgColor
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let imageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        return imageView
+    }()
+    
+    private let nameLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupUI() {
+        contentView.addSubview(containerView)
+        containerView.addSubview(imageView)
+        containerView.addSubview(nameLabel)
+        
+        NSLayoutConstraint.activate([
+            containerView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            
+            imageView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
+            imageView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 90),
+            imageView.heightAnchor.constraint(equalToConstant: 90),
+            
+            nameLabel.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 8),
+            nameLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
+            nameLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+            nameLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16)
+        ])
+    }
+    
+    func configure(with avatar: Avatar, isSelected: Bool) {
+        imageView.image = avatar.image
+        nameLabel.text = avatar.displayName
+        containerView.backgroundColor = .white
+        containerView.layer.shadowColor = UIColor.black.cgColor
+        containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
+        containerView.layer.shadowRadius = 6
+        containerView.layer.shadowOpacity = 0.1
+        
+        if isSelected {
+            containerView.layer.borderColor = UIColor.primaryPurple.cgColor
+            containerView.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+        } else {
+            containerView.layer.borderColor = UIColor.clear.cgColor
+            containerView.transform = .identity
+        }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        containerView.layer.borderColor = UIColor.clear.cgColor
+        containerView.transform = .identity
+    }
+}
+
+// MARK: - Avatar Selection Collection View Extensions
+extension AvatarSelectionViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return Avatar.allCases.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "AvatarCell", for: indexPath) as! AvatarCell
+        let avatar = Avatar.allCases[indexPath.item]
+        cell.configure(with: avatar, isSelected: selectedAvatar == avatar)
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let width = (collectionView.bounds.width - 20) / 2
+        return CGSize(width: width, height: width * 1.2)
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let avatar = Avatar.allCases[indexPath.item]
+        selectedAvatar = avatar
+        collectionView.reloadData()
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
     }
 } 
