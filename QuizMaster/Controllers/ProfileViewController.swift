@@ -704,7 +704,25 @@ class AchievementCell: UICollectionViewCell {
     func configure(with achievement: AchievementBadge) {
         titleLabel.text = achievement.title
         descriptionLabel.text = achievement.description
-        iconImageView.image = UIImage(systemName: achievement.icon)
+        
+        // Check if the icon is an emoji (single character) or SF Symbol
+        if achievement.icon.count == 1 {
+            iconImageView.image = nil
+            iconImageView.backgroundColor = .clear
+            let label = UILabel()
+            label.text = achievement.icon
+            label.font = .systemFont(ofSize: 24)
+            let size = CGSize(width: 24, height: 24)
+            UIGraphicsBeginImageContextWithOptions(size, false, 0)
+            if let context = UIGraphicsGetCurrentContext() {
+                label.layer.render(in: context)
+                iconImageView.image = UIGraphicsGetImageFromCurrentImageContext()
+            }
+            UIGraphicsEndImageContext()
+        } else {
+            iconImageView.image = UIImage(systemName: achievement.icon)
+        }
+        
         iconImageView.tintColor = achievement.isUnlocked ? .primaryPurple : .gray
         
         // Progress bar'ı güncelle
